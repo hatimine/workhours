@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Horas">
+<meta name="theme-color" content="#14161a">
+<title>Registro de Horas — Estações</title>
+<style>
+  :root{
+    --bg: #14161a;
+    --panel: #1c1f25;
+    --panel-2: #22262d;
+    --border: #2c3038;
+    --text: #ece9e2;
+    --muted: #8b8f98;
+    --amber: #f0a537;
+    --amber-dim: #6b4f1e;
+    --teiji: #5fb88f;
+    --zangyo: #e8734a;
+    --danger: #d9524a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    touch-action: manipulation;
+  }
+  .app{max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);}
+
+  header{padding:16px 16px 12px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10;}
+  .clock{
+    font-family: "SF Mono", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size:40px; font-weight:700; letter-spacing:1px; color:var(--amber);
+    line-height:1;
+  }
+  .header-row{display:flex; justify-content:space-between; align-items:flex-end;}
+  .date-line{color:var(--muted); font-size:13px; margin-top:4px; text-transform:capitalize;}
+  .reset-btn{background:none; border:1px solid var(--border); color:var(--muted); font-size:12px; font-weight:700;
+    padding:8px 12px; border-radius:9px;}
+
+  main{flex:1; padding:16px; padding-bottom:32px;}
+
+  .section-label{font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:20px 0 10px;}
+  .section-label:first-child{margin-top:0;}
+
+  .stations-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .station-btn{
+    aspect-ratio:1/0.85; border-radius:12px; border:2px solid var(--border);
+    background:var(--panel); color:var(--text);
+    font-size:17px; font-weight:800; letter-spacing:0.5px;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center; line-height:1.2; padding:4px;
+    position:relative; transition: all .15s ease;
+  }
+  .station-btn small{position:absolute; bottom:8px; font-size:10px; font-weight:500; color:var(--muted);}
+  .station-btn.active{background:linear-gradient(180deg,#3a2c14,#2a2010); border-color:var(--amber); color:var(--amber);
+    box-shadow: 0 0 0 3px rgba(240,165,55,0.15) inset;}
+  .station-btn.pending{background:linear-gradient(180deg,#3a1f1a,#2a1512); border-color:var(--zangyo); color:var(--zangyo);}
+  .station-btn:disabled{opacity:0.45;}
+
+  .status-card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; margin-top:16px;}
+  .status-row{display:flex; justify-content:space-between; align-items:baseline;}
+  .status-row .label{color:var(--muted); font-size:13px;}
+  .status-row .value{font-family:monospace; font-variant-numeric: tabular-nums; font-size:22px; font-weight:700;}
+  .status-sub{color:var(--muted); font-size:12px; margin-top:6px;}
+
+  .events-list{display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;}
+  .event-row{display:flex; justify-content:space-between; align-items:center; background:var(--panel);
+    border:1px solid var(--border); border-radius:9px; padding:9px 12px; font-size:13.5px; flex-wrap:wrap; row-gap:6px;}
+  .event-row .ev-station{font-weight:800; color:var(--amber); min-width:34px;}
+  .event-row .ev-time{font-family:monospace; color:var(--text);}
+  .event-row.ev-final{border-color:var(--teiji);}
+  .event-row.ev-final .ev-station{color:var(--teiji);}
+  .empty-msg{color:var(--muted); font-size:13px; text-align:center; padding:16px 0;}
+  .ev-time-input{background:var(--bg); border:1px solid var(--amber); color:var(--amber); font-family:monospace;
+    font-size:14px; border-radius:7px; padding:5px 8px;}
+  .seg-duration-input{
+    width:56px; padding:8px 4px; font-size:18px; font-weight:700; text-align:center;
+    background:var(--bg); border:1px solid var(--amber); color:var(--amber); border-radius:8px;
+    font-family:monospace; -moz-appearance:textfield;
+  }
+  .seg-duration-input::-webkit-outer-spin-button, .seg-duration-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; margin:0;
+  }
+
+  table.totals{width:100%; border-collapse:collapse; margin-top:6px;}
+  table.totals th{text-align:left; font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--border);}
+  table.totals td{padding:9px 8px; border-bottom:1px solid var(--border); font-size:13.5px;}
+  table.totals td.station-cell{font-weight:800; color:var(--amber);}
+  table.totals td.teiji-cell{color:var(--teiji); font-family:monospace;}
+  table.totals td.zangyo-cell{color:var(--zangyo); font-family:monospace;}
+  table.totals td.total-cell{font-family:monospace; font-weight:700;}
+  table.totals tr.grand td{border-top:2px solid var(--border); border-bottom:none; font-weight:800; padding-top:12px;}
+  table.totals tr.subtotal td{border-top:1px dashed var(--border); font-style:italic; color:var(--muted);}
+  table.totals tr.subtotal td.station-cell{color:var(--muted);}
+
+  .actions{display:flex; gap:10px; margin-top:18px;}
+  .btn{flex:1; padding:14px; border-radius:12px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-size:14px; font-weight:700;}
+  .btn.finalize{background:linear-gradient(180deg,#4a2320,#3a1a18); border-color:var(--danger); color:#ff8f86;}
+  .btn.finalize:disabled{opacity:0.4;}
+  .btn.undo{color:var(--muted);}
+  .btn.confirm{background:linear-gradient(180deg,#1e3327,#182a20); border-color:var(--teiji); color:var(--teiji);}
+
+  .finalize-panel{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; margin-top:16px;}
+  .mode-toggle{display:flex; gap:10px; margin-bottom:12px;}
+  .mode-btn{flex:1; padding:12px; border-radius:10px; border:2px solid var(--border); background:var(--panel-2); color:var(--muted); font-weight:700; font-size:14px;}
+  .mode-btn.selected{border-color:var(--amber); color:var(--amber); background:var(--amber-dim);}
+  .zangyo-input-row{display:none; align-items:center; gap:10px; margin-bottom:12px;}
+  .zangyo-input-row.visible{display:flex;}
+  .zangyo-input-row label{font-size:13px; color:var(--muted); flex:1;}
+  .zangyo-input-row input{width:90px; padding:10px; border-radius:9px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:16px; text-align:center;}
+
+  .finalized-banner{background:linear-gradient(180deg,#1e3327,#182a20); border:1px solid var(--teiji); color:var(--teiji);
+    border-radius:12px; padding:12px 14px; font-size:13px; margin-top:16px; text-align:center; font-weight:600;}
+  .status-msg{margin-top:10px; padding:10px 12px; border-radius:10px; font-size:13px; text-align:center; font-weight:600;
+    background:rgba(95,184,143,0.12); color:var(--teiji); border:1px solid var(--teiji);}
+  .status-msg.error{background:rgba(217,82,74,0.12); color:#ff8f86; border-color:var(--danger);}
+  .backup-textarea{width:100%; min-height:80px; margin-top:8px; padding:10px; border-radius:9px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); font-family:monospace; font-size:11.5px; resize:vertical;}
+  .install-hint{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; font-size:12.5px; color:var(--muted); margin-top:14px; line-height:1.5;}
+  .install-hint b{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="header-row">
+      <div>
+        <div class="clock" id="clock">--:--:--</div>
+        <div class="date-line" id="dateLine">—</div>
+      </div>
+      <button class="reset-btn" id="resetBtn">Início do dia</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="section-label">Estação atual</div>
+    <div class="stations-grid" id="stationsGrid"></div>
+
+    <div class="status-card">
+      <div class="status-row">
+        <span class="label">Trabalhando em</span>
+        <span class="value" id="currentStationVal">—</span>
+      </div>
+      <div class="status-sub" id="sinceVal">Selecione uma estação para começar</div>
+    </div>
+
+    <div class="finalize-panel" id="selectConfirmPanel" hidden>
+      <div id="selectConfirmText" style="font-size:14.5px; margin-bottom:14px;"></div>
+      <div class="actions" style="margin-top:0;">
+        <button class="btn" id="cancelSelectBtn">Cancelar</button>
+        <button class="btn confirm" id="confirmSelectBtn">Confirmar</button>
+      </div>
+    </div>
+
+    <div id="finalizedBanner" class="finalized-banner" hidden></div>
+
+    <div class="section-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span>Registros de hoje</span>
+      <button class="reset-btn" id="editTimesBtn" style="text-transform:none; letter-spacing:0; padding:6px 10px; font-size:11.5px;">Ajustar horários</button>
+    </div>
+    <div class="events-list" id="eventsList"></div>
+
+    <div class="section-label">Totais de hoje</div>
+    <table class="totals">
+      <thead><tr><th>Estação</th><th>Teiji</th><th>Zangyo</th><th>Total</th></tr></thead>
+      <tbody id="totalsBody"></tbody>
+    </table>
+
+    <div class="actions">
+      <button class="btn undo" id="undoBtn">Desfazer última</button>
+      <button class="btn finalize" id="finalizeBtn">Finalizar serviço</button>
+    </div>
+
+    <div class="finalize-panel" id="finalizePanel" hidden>
+      <div class="section-label" style="margin-top:0;">Como foi hoje?</div>
+      <div class="mode-toggle">
+        <button class="mode-btn selected" id="modeTeijiBtn">Teiji (sem hora extra)</button>
+        <button class="mode-btn" id="modeZangyoBtn">Com zangyo</button>
+      </div>
+      <div class="zangyo-input-row" id="zangyoInputRow">
+        <label for="zangyoHoursInput">Quantas horas de zangyo?</label>
+        <input type="number" id="zangyoHoursInput" step="0.25" min="0" value="1">
+      </div>
+      <div class="actions" style="margin-top:0;">
+        <button class="btn" id="cancelFinalizeBtn">Cancelar</button>
+        <button class="btn confirm" id="confirmFinalizeBtn">Confirmar finalização</button>
+      </div>
+    </div>
+
+    <div class="section-label">Backup (opcional)</div>
+    <div class="actions" style="margin-top:0;">
+      <button class="btn" id="backupBtn">Gerar / copiar backup</button>
+      <button class="btn" id="downloadBackupBtn">Baixar arquivo (.txt)</button>
+    </div>
+    <textarea class="backup-textarea" id="backupTextArea" readonly placeholder="Toque em 'Gerar / copiar backup' para preencher aqui"></textarea>
+
+    <div class="section-label">Restaurar backup</div>
+    <textarea class="backup-textarea" id="restoreTextArea" placeholder="Cole aqui o texto de um backup salvo"></textarea>
+    <div class="actions" style="margin-top:8px;">
+      <button class="btn" id="restoreBtn">Restaurar deste texto</button>
+    </div>
+
+    <div id="statusMsg" class="status-msg" hidden></div>
+
+    <div class="install-hint">
+      <b>Dica:</b> toque no ícone de compartilhar do Safari e escolha "Adicionar à Tela de Início" — assim esse app fica com ícone próprio e abre em tela cheia, como um app de verdade. Os dados ficam salvos neste iPhone automaticamente (sem precisar de backup manual), mas evite usar em modo de navegação privada, porque aí o salvamento não persiste.
+    </div>
+  </main>
+</div>
+
+<script>
+const STATIONS = ['1','2','3A','3B','4'];
+const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
+function labelFor(s){ return STATION_LABELS[s] || s; }
+
+const BREAKS = [
+  ['09:00','09:10'],
+  ['11:20','12:00'],
+  ['14:00','14:10'],
+  ['15:30','15:40'],
+];
+const TEIJI_END = '15:30';
+const ZANGYO_START = '15:40';
+const DAY_START = '06:30';
+const LUNCH_START = '11:20';
+const LUNCH_END = '12:00';
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function dateKeyOf(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function timeOnDate(dayKey, hhmm){
+  const [y,mo,da] = dayKey.split('-').map(Number);
+  const [h,mi] = hhmm.split(':').map(Number);
+  return new Date(y, mo-1, da, h, mi, 0, 0);
+}
+function fmtClock(d){ return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds()); }
+function fmtHM(d){ return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+function fmtDur(ms){
+  if(ms<0) ms=0;
+  const totalMin = Math.round(ms/60000);
+  const h = Math.floor(totalMin/60);
+  const m = totalMin%60;
+  const decimal = parseFloat((ms/3600000).toFixed(2)).toString();
+  return h+':'+pad2(m)+'/'+decimal;
+}
+function fmtElapsed(ms){
+  if(ms<0) ms=0;
+  const totalSec = Math.floor(ms/1000);
+  const h = Math.floor(totalSec/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec%60;
+  if(h>0) return h+'h ' + pad2(m) + 'min';
+  if(m>0) return m + 'min ' + pad2(s) + 's';
+  return s + 's';
+}
+function fmtDateHuman(dayKey){
+  const [y,mo,da] = dayKey.split('-').map(Number);
+  const d = new Date(y, mo-1, da);
+  const dias = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  return pad2(da)+'/'+pad2(mo)+'/'+y+' · '+dias[d.getDay()];
+}
+
+function computeTotals(dayKey, events, endTime){
+  const totals = {};
+  STATIONS.forEach(s => totals[s] = {teiji:0, zangyo:0});
+  const breakIntervals = BREAKS.map(([s,e]) => [timeOnDate(dayKey,s), timeOnDate(dayKey,e)]);
+  const teijiEnd = timeOnDate(dayKey, TEIJI_END);
+
+  for(let i=0;i<events.length;i++){
+    const start = new Date(events[i].time);
+    const end = i+1 < events.length ? new Date(events[i+1].time) : endTime;
+    if(!(end > start)) continue;
+    const station = events[i].station;
+    if(!totals[station]) totals[station] = {teiji:0, zangyo:0};
+
+    let segments = [[start, end]];
+    for(const [bs,be] of breakIntervals){
+      const next = [];
+      for(const [s,e] of segments){
+        if(be <= s || bs >= e){ next.push([s,e]); continue; }
+        if(bs > s) next.push([s, new Date(Math.min(bs.getTime(), e.getTime()))]);
+        if(be < e) next.push([new Date(Math.max(be.getTime(), s.getTime())), e]);
+      }
+      segments = next.filter(([s,e]) => e > s);
+    }
+
+    for(const [s,e] of segments){
+      if(e <= teijiEnd){
+        totals[station].teiji += (e - s);
+      } else if(s >= teijiEnd){
+        totals[station].zangyo += (e - s);
+      } else {
+        totals[station].teiji += (teijiEnd - s);
+        totals[station].zangyo += (e - teijiEnd);
+      }
+    }
+  }
+  return totals;
+}
+
+let today = dateKeyOf(new Date());
+let dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null };
+let storageOk = true;
+
+const el = {
+  clock: document.getElementById('clock'),
+  dateLine: document.getElementById('dateLine'),
+  stationsGrid: document.getElementById('stationsGrid'),
+  currentStationVal: document.getElementById('currentStationVal'),
+  sinceVal: document.getElementById('sinceVal'),
+  eventsList: document.getElementById('eventsList'),
+  totalsBody: document.getElementById('totalsBody'),
+  finalizeBtn: document.getElementById('finalizeBtn'),
+  undoBtn: document.getElementById('undoBtn'),
+  finalizedBanner: document.getElementById('finalizedBanner'),
+  resetBtn: document.getElementById('resetBtn'),
+  finalizePanel: document.getElementById('finalizePanel'),
+  modeTeijiBtn: document.getElementById('modeTeijiBtn'),
+  modeZangyoBtn: document.getElementById('modeZangyoBtn'),
+  zangyoInputRow: document.getElementById('zangyoInputRow'),
+  zangyoHoursInput: document.getElementById('zangyoHoursInput'),
+  cancelFinalizeBtn: document.getElementById('cancelFinalizeBtn'),
+  confirmFinalizeBtn: document.getElementById('confirmFinalizeBtn'),
+  backupTextArea: document.getElementById('backupTextArea'),
+  restoreTextArea: document.getElementById('restoreTextArea'),
+  restoreBtn: document.getElementById('restoreBtn'),
+  statusMsg: document.getElementById('statusMsg'),
+  selectConfirmPanel: document.getElementById('selectConfirmPanel'),
+  selectConfirmText: document.getElementById('selectConfirmText'),
+  cancelSelectBtn: document.getElementById('cancelSelectBtn'),
+  confirmSelectBtn: document.getElementById('confirmSelectBtn'),
+};
+
+let statusTimer = null;
+function showStatus(msg, isError){
+  el.statusMsg.textContent = msg;
+  el.statusMsg.classList.toggle('error', !!isError);
+  el.statusMsg.hidden = false;
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => { el.statusMsg.hidden = true; }, 5000);
+}
+
+STATIONS.forEach(s => {
+  const b = document.createElement('button');
+  b.className = 'station-btn';
+  b.dataset.station = s;
+  b.innerHTML = labelFor(s) + '<small>' + s + '</small>';
+  b.addEventListener('click', () => selectStation(s));
+  el.stationsGrid.appendChild(b);
+});
+
+function loadDay(){
+  today = dateKeyOf(new Date());
+  dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null };
+  try{
+    const raw = localStorage.getItem('day:'+today);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && parsed.date === today) dayData = parsed;
+    }
+    storageOk = true;
+  }catch(e){
+    storageOk = false;
+    showStatus('Este navegador não está permitindo salvar dados aqui (talvez modo privado). Use a aba normal do Safari.', true);
+  }
+  render();
+}
+
+function saveDay(){
+  try{
+    localStorage.setItem('day:'+dayData.date, JSON.stringify(dayData));
+    storageOk = true;
+  }catch(e){
+    storageOk = false;
+    showStatus('Não consegui salvar os dados neste navegador agora.', true);
+  }
+}
+
+function buildBackupJSON(){
+  return JSON.stringify(dayData, null, 2);
+}
+
+function buildBackupText(){
+  const endTime = dayData.finalized ? new Date(dayData.finalizedAt) : new Date();
+  const totals = computeTotals(dayData.date, dayData.events, endTime);
+  let lines = [];
+  lines.push('Registro de horas — ' + dayData.date);
+  lines.push(dayData.finalized ? 'Status: finalizado (' + dayData.finalizeMode + ') às ' + fmtHM(new Date(dayData.finalizedAt)) : 'Status: em aberto');
+  lines.push('');
+  lines.push('Registros:');
+  dayData.events.forEach(ev => {
+    lines.push('- ' + labelFor(ev.station) + ' às ' + fmtHM(new Date(ev.time)));
+  });
+  lines.push('');
+  lines.push('Totais:');
+  STATIONS.forEach(s => {
+    const t = totals[s] || {teiji:0, zangyo:0};
+    lines.push(labelFor(s) + ': teiji ' + fmtDur(t.teiji) + ' / zangyo ' + fmtDur(t.zangyo));
+  });
+  const t3a = totals['3A'] || {teiji:0, zangyo:0};
+  const t3b = totals['3B'] || {teiji:0, zangyo:0};
+  lines.push(labelFor('3A') + ' + ' + labelFor('3B') + ': teiji ' + fmtDur(t3a.teiji+t3b.teiji) + ' / zangyo ' + fmtDur(t3a.zangyo+t3b.zangyo));
+  lines.push('');
+  lines.push('--- não apague a linha abaixo, ela serve para restaurar ---');
+  lines.push('DADOS:' + buildBackupJSON());
+  return lines.join('\n');
+}
+
+async function performClipboardCopy(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }catch(e){ /* segue pro fallback */ }
+  try{
+    el.backupTextArea.value = text;
+    el.backupTextArea.select();
+    const ok = document.execCommand('copy');
+    if(ok) return true;
+  }catch(e){ /* ignora */ }
+  return false;
+}
+
+function downloadBackupFile(){
+  const text = buildBackupText();
+  el.backupTextArea.value = text;
+  try{
+    const blob = new Blob([text], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'registro-horas-' + dayData.date + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showStatus('Arquivo gerado — deve abrir a tela de salvar/compartilhar.');
+  }catch(e){
+    showStatus('Não consegui gerar o arquivo. Use o texto acima e copie manualmente.', true);
+  }
+}
+
+async function copyBackup(){
+  const text = buildBackupText();
+  el.backupTextArea.value = text;
+  const ok = await performClipboardCopy(text);
+  if(ok){
+    showStatus('Backup copiado para a área de transferência!');
+  } else {
+    showStatus('Não consegui copiar automaticamente. Toque no texto acima, ele já vem selecionado — é só copiar manualmente.', true);
+  }
+}
+
+let pendingMismatchRestore = null;
+function restoreFromTextarea(){
+  const pasted = el.restoreTextArea.value;
+  if(!pasted || !pasted.trim()){
+    showStatus('Cole o texto do backup no campo acima primeiro.', true);
+    return;
+  }
+  if(pendingMismatchRestore){
+    applyRestore(pendingMismatchRestore);
+    pendingMismatchRestore = null;
+    el.restoreBtn.textContent = 'Restaurar deste texto';
+    return;
+  }
+  const marker = 'DADOS:';
+  const idx = pasted.indexOf(marker);
+  if(idx === -1){
+    showStatus('Não encontrei os dados nesse texto. Cole o backup completo, do jeito que foi copiado.', true);
+    return;
+  }
+  let restored;
+  try{
+    const jsonPart = pasted.slice(idx + marker.length).trim();
+    restored = JSON.parse(jsonPart);
+    if(!restored || !restored.date || !Array.isArray(restored.events)) throw new Error('formato inválido');
+  }catch(e){
+    showStatus('Não consegui ler esse backup. Confira se colou o texto completo.', true);
+    return;
+  }
+  if(restored.date !== today){
+    pendingMismatchRestore = restored;
+    el.restoreBtn.textContent = 'Confirmar mesmo assim?';
+    showStatus('Esse backup é do dia ' + restored.date + ', diferente de hoje. Toque em "Confirmar mesmo assim?" para restaurar.', true);
+    return;
+  }
+  applyRestore(restored);
+}
+function applyRestore(restored){
+  dayData = restored;
+  closeFinalizePanel();
+  render();
+  saveDay();
+  showStatus('Backup restaurado com sucesso.');
+}
+
+let pendingStation = null;
+
+function computeEventTime(){
+  if(dayData.events.length === 0){
+    return { time: timeOnDate(today, DAY_START), afterLunch:false };
+  }
+  const last = dayData.events[dayData.events.length-1];
+  const lastTime = new Date(last.time);
+  const lunchStart = timeOnDate(today, LUNCH_START);
+  if(lastTime < lunchStart && new Date() >= lunchStart){
+    return { time: timeOnDate(today, LUNCH_END), afterLunch:true };
+  }
+  return { time: new Date(), afterLunch:false };
+}
+
+function selectStation(station){
+  if(dayData.finalized) return;
+  const last = dayData.events[dayData.events.length-1];
+  if(last && last.station === station) return;
+  pendingStation = station;
+  const { afterLunch } = computeEventTime();
+  el.selectConfirmText.textContent = afterLunch
+    ? 'Você vai retomar o serviço em ' + labelFor(station) + ' às 12:00 (volta do almoço).'
+    : 'Você vai começar a trabalhar em ' + labelFor(station) + '.';
+  el.selectConfirmPanel.hidden = false;
+  updatePendingHighlight();
+}
+function cancelSelect(){
+  pendingStation = null;
+  el.selectConfirmPanel.hidden = true;
+  updatePendingHighlight();
+}
+function confirmSelect(){
+  if(!pendingStation) return;
+  const station = pendingStation;
+  const { time } = computeEventTime();
+  dayData.events.push({ station, time: time.toISOString() });
+  pendingStation = null;
+  el.selectConfirmPanel.hidden = true;
+  saveDay();
+  render();
+}
+function updatePendingHighlight(){
+  document.querySelectorAll('.station-btn').forEach(btn => {
+    btn.classList.toggle('pending', btn.dataset.station === pendingStation);
+  });
+}
+el.cancelSelectBtn.addEventListener('click', cancelSelect);
+el.confirmSelectBtn.addEventListener('click', confirmSelect);
+
+function undoLast(){
+  if(dayData.finalized || dayData.events.length===0) return;
+  dayData.events.pop();
+  saveDay();
+  render();
+}
+
+let resetArmed = false;
+function resetDay(){
+  if(!resetArmed){
+    resetArmed = true;
+    el.resetBtn.textContent = 'Confirmar apagar?';
+    showStatus('Toque em "Confirmar apagar?" de novo para apagar os registros de hoje.', true);
+    setTimeout(() => {
+      if(resetArmed){ resetArmed = false; el.resetBtn.textContent = 'Início do dia'; }
+    }, 5000);
+    return;
+  }
+  resetArmed = false;
+  el.resetBtn.textContent = 'Início do dia';
+  dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null };
+  closeFinalizePanel();
+  saveDay();
+  render();
+  showStatus('Novo dia iniciado.');
+}
+
+let selectedMode = 'teiji';
+function openFinalizePanel(){
+  if(dayData.finalized) return;
+  if(dayData.events.length===0){
+    showStatus('Selecione ao menos uma estação antes de finalizar.', true);
+    return;
+  }
+  selectedMode = 'teiji';
+  updateModeButtons();
+  el.finalizePanel.hidden = false;
+}
+function closeFinalizePanel(){
+  el.finalizePanel.hidden = true;
+}
+function updateModeButtons(){
+  el.modeTeijiBtn.classList.toggle('selected', selectedMode === 'teiji');
+  el.modeZangyoBtn.classList.toggle('selected', selectedMode === 'zangyo');
+  el.zangyoInputRow.classList.toggle('visible', selectedMode === 'zangyo');
+}
+el.modeTeijiBtn.addEventListener('click', () => { selectedMode = 'teiji'; updateModeButtons(); });
+el.modeZangyoBtn.addEventListener('click', () => { selectedMode = 'zangyo'; updateModeButtons(); });
+el.cancelFinalizeBtn.addEventListener('click', closeFinalizePanel);
+
+function confirmFinalize(){
+  let endTime, zangyoHours = null;
+  if(selectedMode === 'teiji'){
+    endTime = timeOnDate(today, TEIJI_END);
+  } else {
+    const hours = parseFloat(el.zangyoHoursInput.value);
+    if(isNaN(hours) || hours < 0){
+      showStatus('Digite uma quantidade de horas válida.', true);
+      return;
+    }
+    zangyoHours = hours;
+    const zangyoStart = timeOnDate(today, ZANGYO_START);
+    endTime = new Date(zangyoStart.getTime() + hours*3600000);
+  }
+  dayData.finalized = true;
+  dayData.finalizedAt = endTime.toISOString();
+  dayData.finalizeMode = selectedMode;
+  dayData.zangyoHours = zangyoHours;
+  closeFinalizePanel();
+  saveDay();
+  render();
+}
+el.confirmFinalizeBtn.addEventListener('click', confirmFinalize);
+
+let editingTimes = false;
+function parseDurationInputs(idx){
+  const hInput = el.eventsList.querySelector('.seg-h-input[data-idx="'+idx+'"]');
+  const mInput = el.eventsList.querySelector('.seg-m-input[data-idx="'+idx+'"]');
+  if(!hInput || !mInput) return null;
+  const h = parseInt(hInput.value, 10);
+  const m = parseInt(mInput.value, 10);
+  if(isNaN(h) || isNaN(m) || h < 0 || m < 0 || m > 59) return null;
+  return h*3600000 + m*60000;
+}
+
+function renderEventsList(){
+  el.eventsList.innerHTML = '';
+  if(dayData.events.length === 0 && !dayData.finalized){
+    el.eventsList.innerHTML = '<div class="empty-msg">Nenhum registro ainda hoje.</div>';
+    return;
+  }
+  const n = dayData.events.length;
+  const endTimeNow = dayData.finalized ? new Date(dayData.finalizedAt) : new Date();
+
+  dayData.events.forEach((ev, idx) => {
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    const segStart = new Date(ev.time);
+    const segEnd = idx+1 < n ? new Date(dayData.events[idx+1].time) : endTimeNow;
+    const durMs = segEnd - segStart;
+    const isLastOngoing = (idx === n-1) && !dayData.finalized;
+
+    if(editingTimes){
+      const hh = Math.floor(durMs/3600000);
+      const mm = Math.floor((durMs%3600000)/60000);
+      if(isLastOngoing){
+        row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + ' <small style="color:var(--muted); font-weight:400;">desde ' + fmtHM(segStart) + '</small></span>' +
+          '<span class="ev-time" style="color:var(--muted); font-style:italic;">em andamento</span>';
+      } else {
+        row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + ' <small style="color:var(--muted); font-weight:400;">desde ' + fmtHM(segStart) + '</small></span>' +
+          '<span style="display:flex; align-items:center; gap:6px;">' +
+          '<input type="number" class="seg-h-input seg-duration-input" data-idx="' + idx + '" min="0" value="' + hh + '">' +
+          '<span style="color:var(--muted); font-size:13px;">h</span>' +
+          '<input type="number" class="seg-m-input seg-duration-input" data-idx="' + idx + '" min="0" max="59" value="' + mm + '">' +
+          '<span style="color:var(--muted); font-size:13px;">min</span></span>';
+      }
+    } else {
+      row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + '</span><span class="ev-time">' + fmtHM(segStart) + '</span>';
+    }
+    el.eventsList.appendChild(row);
+  });
+
+  if(dayData.finalized){
+    const row = document.createElement('div');
+    row.className = 'event-row ev-final';
+    const label = dayData.finalizeMode === 'zangyo' ? ('Finalizado (zangyo +' + dayData.zangyoHours + 'h)') : 'Finalizado (teiji)';
+    row.innerHTML = '<span class="ev-station">' + label + '</span><span class="ev-time">' + fmtHM(new Date(dayData.finalizedAt)) + '</span>';
+    el.eventsList.appendChild(row);
+  }
+
+  if(editingTimes){
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:12px; color:var(--muted); margin-top:8px; margin-bottom:4px;';
+    hint.textContent = 'Ajuste a duração de um serviço — a diferença é descontada ou somada automaticamente no serviço seguinte.';
+    el.eventsList.appendChild(hint);
+
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'actions';
+    actionsRow.style.marginTop = '6px';
+    actionsRow.innerHTML = '<button class="btn" id="cancelEditTimesBtn">Cancelar</button><button class="btn confirm" id="saveEditTimesBtn">Salvar ajustes</button>';
+    el.eventsList.appendChild(actionsRow);
+    document.getElementById('cancelEditTimesBtn').addEventListener('click', () => {
+      editingTimes = false;
+      document.getElementById('editTimesBtn').textContent = 'Ajustar horários';
+      renderEventsList();
+    });
+    document.getElementById('saveEditTimesBtn').addEventListener('click', saveEditedTimes);
+  }
+}
+
+function saveEditedTimes(){
+  const n = dayData.events.length;
+  const times = dayData.events.map(ev => new Date(ev.time).getTime());
+  let endTimeMs = dayData.finalized ? new Date(dayData.finalizedAt).getTime() : new Date().getTime();
+  let errorMsg = null;
+
+  for(let idx = 0; idx < n; idx++){
+    if(idx === n-1 && !dayData.finalized) continue;
+    const newDur = parseDurationInputs(idx);
+    if(newDur === null){
+      errorMsg = 'Preencha horas e minutos válidos em todos os campos.';
+      break;
+    }
+    const oldEnd = idx+1 < n ? times[idx+1] : endTimeMs;
+    const oldDur = oldEnd - times[idx];
+    const delta = newDur - oldDur;
+    if(delta === 0) continue;
+    if(idx+1 < n){
+      times[idx+1] += delta;
+    } else {
+      endTimeMs += delta;
+    }
+  }
+
+  if(errorMsg){ showStatus(errorMsg, true); return; }
+
+  for(let i=1;i<n;i++){
+    if(times[i] <= times[i-1]){
+      showStatus('Esse ajuste deixaria os horários fora de ordem. Tente valores menores.', true);
+      return;
+    }
+  }
+  if(dayData.finalized && endTimeMs <= times[n-1]){
+    showStatus('Esse ajuste deixaria o horário final antes do último registro.', true);
+    return;
+  }
+
+  dayData.events.forEach((ev, idx) => { ev.time = new Date(times[idx]).toISOString(); });
+  if(dayData.finalized) dayData.finalizedAt = new Date(endTimeMs).toISOString();
+
+  editingTimes = false;
+  document.getElementById('editTimesBtn').textContent = 'Ajustar horários';
+  saveDay();
+  render();
+  showStatus('Ajustado — a diferença foi compensada no próximo serviço.');
+}
+
+function appendTotalsRow(label, t, extraClass){
+  const tr = document.createElement('tr');
+  if(extraClass) tr.className = extraClass;
+  tr.innerHTML = '<td class="station-cell">' + label + '</td>' +
+    '<td class="teiji-cell">' + fmtDur(t.teiji) + '</td>' +
+    '<td class="zangyo-cell">' + fmtDur(t.zangyo) + '</td>' +
+    '<td class="total-cell">' + fmtDur(t.teiji + t.zangyo) + '</td>';
+  return tr;
+}
+
+function renderTotalsTable(totals){
+  el.totalsBody.innerHTML = '';
+  let grandT = 0, grandZ = 0, anyRow = false;
+  STATIONS.forEach(s => {
+    const t = totals[s] || {teiji:0, zangyo:0};
+    grandT += t.teiji; grandZ += t.zangyo;
+    if(t.teiji === 0 && t.zangyo === 0) return;
+    anyRow = true;
+    el.totalsBody.appendChild(appendTotalsRow(labelFor(s), t));
+  });
+  const t3a = totals['3A'] || {teiji:0, zangyo:0};
+  const t3b = totals['3B'] || {teiji:0, zangyo:0};
+  const combined = { teiji: t3a.teiji + t3b.teiji, zangyo: t3a.zangyo + t3b.zangyo };
+  if(combined.teiji > 0 || combined.zangyo > 0){
+    el.totalsBody.appendChild(appendTotalsRow(labelFor('3A') + ' + ' + labelFor('3B'), combined, 'subtotal'));
+  }
+  if(!anyRow){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="4" style="text-align:center; color:var(--muted); padding:14px 8px; border-bottom:none;">Nenhuma hora registrada ainda</td>';
+    el.totalsBody.appendChild(tr);
+    return;
+  }
+  const grandTr = document.createElement('tr');
+  grandTr.className = 'grand';
+  grandTr.innerHTML = '<td class="station-cell">Total</td>' +
+    '<td class="teiji-cell">' + fmtDur(grandT) + '</td>' +
+    '<td class="zangyo-cell">' + fmtDur(grandZ) + '</td>' +
+    '<td class="total-cell">' + fmtDur(grandT + grandZ) + '</td>';
+  el.totalsBody.appendChild(grandTr);
+}
+
+function updateElapsedDisplay(){
+  if(dayData.finalized){
+    el.sinceVal.textContent = 'Serviço encerrado';
+    return;
+  }
+  const lastEvent = dayData.events[dayData.events.length-1];
+  if(!lastEvent){
+    el.sinceVal.textContent = 'Selecione uma estação para começar';
+    return;
+  }
+  const elapsed = Date.now() - new Date(lastEvent.time).getTime();
+  el.sinceVal.textContent = fmtElapsed(elapsed) + ' nesta estação';
+}
+
+function render(){
+  el.dateLine.textContent = fmtDateHuman(dayData.date);
+  const lastEvent = dayData.events[dayData.events.length-1];
+  const activeStation = lastEvent ? lastEvent.station : null;
+
+  document.querySelectorAll('.station-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.station === activeStation && !dayData.finalized);
+    btn.disabled = dayData.finalized;
+  });
+  updatePendingHighlight();
+
+  if(dayData.finalized){
+    el.currentStationVal.textContent = '—';
+    el.finalizedBanner.hidden = false;
+    const modeLabel = dayData.finalizeMode === 'zangyo' ? ('zangyo de ' + dayData.zangyoHours + 'h') : 'teiji';
+    el.finalizedBanner.textContent = 'Serviço finalizado (' + modeLabel + ') às ' + fmtHM(new Date(dayData.finalizedAt)) + '.';
+    el.finalizeBtn.disabled = true;
+    el.undoBtn.disabled = true;
+  } else {
+    el.finalizedBanner.hidden = true;
+    el.finalizeBtn.disabled = false;
+    el.undoBtn.disabled = dayData.events.length === 0;
+    el.currentStationVal.textContent = activeStation || '—';
+  }
+  updateElapsedDisplay();
+  renderEventsList();
+
+  const endTime = dayData.finalized ? new Date(dayData.finalizedAt) : new Date();
+  const totals = computeTotals(dayData.date, dayData.events, endTime);
+  renderTotalsTable(totals);
+}
+
+function tickClock(){
+  const now = new Date();
+  el.clock.textContent = fmtClock(now);
+  if(dateKeyOf(now) !== dayData.date){
+    loadDay();
+  } else if(!dayData.finalized){
+    const totals = computeTotals(dayData.date, dayData.events, now);
+    renderTotalsTable(totals);
+    updateElapsedDisplay();
+  }
+}
+setInterval(tickClock, 1000);
+
+el.finalizeBtn.addEventListener('click', openFinalizePanel);
+el.undoBtn.addEventListener('click', undoLast);
+el.resetBtn.addEventListener('click', resetDay);
+document.getElementById('backupBtn').addEventListener('click', copyBackup);
+document.getElementById('downloadBackupBtn').addEventListener('click', downloadBackupFile);
+document.getElementById('restoreBtn').addEventListener('click', restoreFromTextarea);
+el.backupTextArea.addEventListener('click', () => el.backupTextArea.select());
+el.backupTextArea.addEventListener('focus', () => el.backupTextArea.select());
+document.getElementById('editTimesBtn').addEventListener('click', () => {
+  if(dayData.events.length === 0){
+    showStatus('Ainda não há registros para ajustar.', true);
+    return;
+  }
+  editingTimes = !editingTimes;
+  document.getElementById('editTimesBtn').textContent = editingTimes ? 'Fechar ajuste' : 'Ajustar horários';
+  renderEventsList();
+});
+
+loadDay();
+</script>
+</body>
+</html>
