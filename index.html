@@ -2,11 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Horas">
-<meta name="theme-color" content="#14161a">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Registro de Horas — Estações</title>
 <style>
   :root{
@@ -27,8 +23,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     touch-action: manipulation;
   }
-  .app{max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;
-    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);}
+  .app{max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;}
 
   header{padding:16px 16px 12px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10;}
   .clock{
@@ -76,20 +71,18 @@
   .event-row.ev-final{border-color:var(--teiji);}
   .event-row.ev-final .ev-station{color:var(--teiji);}
   .empty-msg{color:var(--muted); font-size:13px; text-align:center; padding:16px 0;}
-  .ev-time-input{background:var(--bg); border:1px solid var(--amber); color:var(--amber); font-family:monospace;
-    font-size:14px; border-radius:7px; padding:5px 8px;}
-  .seg-duration-input{
-    width:56px; padding:8px 4px; font-size:18px; font-weight:700; text-align:center;
-    background:var(--bg); border:1px solid var(--amber); color:var(--amber); border-radius:8px;
+  .mini-duration-input{
+    width:30px; padding:4px 2px; font-size:12.5px; font-weight:700; text-align:center;
+    background:var(--bg); border:1px solid var(--amber); color:var(--amber); border-radius:5px;
     font-family:monospace; -moz-appearance:textfield;
   }
-  .seg-duration-input::-webkit-outer-spin-button, .seg-duration-input::-webkit-inner-spin-button{
+  .mini-duration-input::-webkit-outer-spin-button, .mini-duration-input::-webkit-inner-spin-button{
     -webkit-appearance:none; margin:0;
   }
 
   table.totals{width:100%; border-collapse:collapse; margin-top:6px;}
   table.totals th{text-align:left; font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--border);}
-  table.totals td{padding:9px 8px; border-bottom:1px solid var(--border); font-size:13.5px;}
+  table.totals td{padding:9px 8px; border-bottom:1px solid var(--border); font-size:14px;}
   table.totals td.station-cell{font-weight:800; color:var(--amber);}
   table.totals td.teiji-cell{color:var(--teiji); font-family:monospace;}
   table.totals td.zangyo-cell{color:var(--zangyo); font-family:monospace;}
@@ -116,13 +109,21 @@
 
   .finalized-banner{background:linear-gradient(180deg,#1e3327,#182a20); border:1px solid var(--teiji); color:var(--teiji);
     border-radius:12px; padding:12px 14px; font-size:13px; margin-top:16px; text-align:center; font-weight:600;}
+
   .status-msg{margin-top:10px; padding:10px 12px; border-radius:10px; font-size:13px; text-align:center; font-weight:600;
     background:rgba(95,184,143,0.12); color:var(--teiji); border:1px solid var(--teiji);}
   .status-msg.error{background:rgba(217,82,74,0.12); color:#ff8f86; border-color:var(--danger);}
-  .backup-textarea{width:100%; min-height:80px; margin-top:8px; padding:10px; border-radius:9px; border:1px solid var(--border);
-    background:var(--bg); color:var(--text); font-family:monospace; font-size:11.5px; resize:vertical;}
-  .install-hint{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; font-size:12.5px; color:var(--muted); margin-top:14px; line-height:1.5;}
-  .install-hint b{color:var(--text);}
+
+  .tabs{display:flex; gap:8px; margin-top:14px;}
+  .tab-btn{flex:1; padding:10px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel); color:var(--muted); font-size:14px; font-weight:600;}
+  .tab-btn.active{background:var(--amber-dim); color:var(--amber); border-color:var(--amber);}
+  .history-item{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px;
+    display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-bottom:8px;}
+  .history-item .badge{font-size:10px; padding:3px 7px; border-radius:6px; font-weight:700;}
+  .badge.done{background:rgba(95,184,143,0.15); color:var(--teiji);}
+  .badge.open{background:rgba(240,165,55,0.15); color:var(--amber);}
+  .back-link{color:var(--amber); font-size:13px; font-weight:600; margin-bottom:12px; display:inline-block;}
 </style>
 </head>
 <body>
@@ -135,9 +136,18 @@
       </div>
       <button class="reset-btn" id="resetBtn">Início do dia</button>
     </div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tabToday">Hoje</button>
+      <button class="tab-btn" id="tabHistory">Histórico</button>
+    </div>
   </header>
 
   <main>
+    <section id="view-history" hidden>
+      <div id="historyList"></div>
+    </section>
+
+    <section id="view-today">
     <div class="section-label">Estação atual</div>
     <div class="stations-grid" id="stationsGrid"></div>
 
@@ -159,17 +169,22 @@
 
     <div id="finalizedBanner" class="finalized-banner" hidden></div>
 
-    <div class="section-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-      <span>Registros de hoje</span>
-      <button class="reset-btn" id="editTimesBtn" style="text-transform:none; letter-spacing:0; padding:6px 10px; font-size:11.5px;">Ajustar horários</button>
-    </div>
+    <div class="section-label">Registros de hoje</div>
     <div class="events-list" id="eventsList"></div>
 
-    <div class="section-label">Totais de hoje</div>
+    <div class="section-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span>Totais de hoje</span>
+      <button class="reset-btn" id="editTimesBtn" style="text-transform:none; letter-spacing:0; padding:6px 10px; font-size:11.5px;">Ajustar horários</button>
+    </div>
     <table class="totals">
       <thead><tr><th>Estação</th><th>Teiji</th><th>Zangyo</th><th>Total</th></tr></thead>
       <tbody id="totalsBody"></tbody>
     </table>
+    <div id="adjustHint" style="font-size:12px; color:var(--muted); margin-top:8px;" hidden></div>
+    <div class="actions" id="adjustActions" style="margin-top:10px;" hidden>
+      <button class="btn" id="cancelAdjustBtn">Cancelar</button>
+      <button class="btn confirm" id="saveAdjustBtn">Salvar ajustes</button>
+    </div>
 
     <div class="actions">
       <button class="btn undo" id="undoBtn">Desfazer última</button>
@@ -192,24 +207,8 @@
       </div>
     </div>
 
-    <div class="section-label">Backup (opcional)</div>
-    <div class="actions" style="margin-top:0;">
-      <button class="btn" id="backupBtn">Gerar / copiar backup</button>
-      <button class="btn" id="downloadBackupBtn">Baixar arquivo (.txt)</button>
-    </div>
-    <textarea class="backup-textarea" id="backupTextArea" readonly placeholder="Toque em 'Gerar / copiar backup' para preencher aqui"></textarea>
-
-    <div class="section-label">Restaurar backup</div>
-    <textarea class="backup-textarea" id="restoreTextArea" placeholder="Cole aqui o texto de um backup salvo"></textarea>
-    <div class="actions" style="margin-top:8px;">
-      <button class="btn" id="restoreBtn">Restaurar deste texto</button>
-    </div>
-
     <div id="statusMsg" class="status-msg" hidden></div>
-
-    <div class="install-hint">
-      <b>Dica:</b> toque no ícone de compartilhar do Safari e escolha "Adicionar à Tela de Início" — assim esse app fica com ícone próprio e abre em tela cheia, como um app de verdade. Os dados ficam salvos neste iPhone automaticamente (sem precisar de backup manual), mas evite usar em modo de navegação privada, porque aí o salvamento não persiste.
-    </div>
+    </section>
   </main>
 </div>
 
@@ -217,7 +216,6 @@
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
-
 const BREAKS = [
   ['09:00','09:10'],
   ['11:20','12:00'],
@@ -227,8 +225,6 @@ const BREAKS = [
 const TEIJI_END = '15:30';
 const ZANGYO_START = '15:40';
 const DAY_START = '06:30';
-const LUNCH_START = '11:20';
-const LUNCH_END = '12:00';
 
 function pad2(n){ return String(n).padStart(2,'0'); }
 function dateKeyOf(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
@@ -302,9 +298,32 @@ function computeTotals(dayKey, events, endTime){
   return totals;
 }
 
+// aplica os ajustes manuais (por estação, teiji/zangyo) por cima dos totais reais calculados a partir dos registros
+function getTotalsFor(dd){
+  let endTime;
+  if(dd.finalized){
+    endTime = new Date(dd.finalizedAt);
+  } else if(dd.date === today){
+    endTime = new Date(); // dia de hoje, ainda em andamento — usa o relógio atual
+  } else {
+    // dia antigo que nunca foi finalizado: não sabemos quando terminou de verdade,
+    // então não conta o último serviço como se estivesse em andamento até agora
+    endTime = dd.events.length ? new Date(dd.events[dd.events.length-1].time) : timeOnDate(dd.date, DAY_START);
+  }
+  const raw = computeTotals(dd.date, dd.events, endTime);
+  const totals = {};
+  STATIONS.forEach(s => {
+    const adj = (dd.adjustments && dd.adjustments[s]) || {teiji:0, zangyo:0};
+    totals[s] = { teiji: raw[s].teiji + (adj.teiji||0), zangyo: raw[s].zangyo + (adj.zangyo||0) };
+  });
+  return totals;
+}
+function getAdjustedTotals(){
+  return getTotalsFor(dayData);
+}
+
 let today = dateKeyOf(new Date());
-let dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null };
-let storageOk = true;
+let dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null, adjustments:{} };
 
 const el = {
   clock: document.getElementById('clock'),
@@ -314,6 +333,10 @@ const el = {
   sinceVal: document.getElementById('sinceVal'),
   eventsList: document.getElementById('eventsList'),
   totalsBody: document.getElementById('totalsBody'),
+  adjustHint: document.getElementById('adjustHint'),
+  adjustActions: document.getElementById('adjustActions'),
+  cancelAdjustBtn: document.getElementById('cancelAdjustBtn'),
+  saveAdjustBtn: document.getElementById('saveAdjustBtn'),
   finalizeBtn: document.getElementById('finalizeBtn'),
   undoBtn: document.getElementById('undoBtn'),
   finalizedBanner: document.getElementById('finalizedBanner'),
@@ -325,10 +348,12 @@ const el = {
   zangyoHoursInput: document.getElementById('zangyoHoursInput'),
   cancelFinalizeBtn: document.getElementById('cancelFinalizeBtn'),
   confirmFinalizeBtn: document.getElementById('confirmFinalizeBtn'),
-  backupTextArea: document.getElementById('backupTextArea'),
-  restoreTextArea: document.getElementById('restoreTextArea'),
-  restoreBtn: document.getElementById('restoreBtn'),
   statusMsg: document.getElementById('statusMsg'),
+  tabToday: document.getElementById('tabToday'),
+  tabHistory: document.getElementById('tabHistory'),
+  viewToday: document.getElementById('view-today'),
+  viewHistory: document.getElementById('view-history'),
+  historyList: document.getElementById('historyList'),
   selectConfirmPanel: document.getElementById('selectConfirmPanel'),
   selectConfirmText: document.getElementById('selectConfirmText'),
   cancelSelectBtn: document.getElementById('cancelSelectBtn'),
@@ -355,17 +380,15 @@ STATIONS.forEach(s => {
 
 function loadDay(){
   today = dateKeyOf(new Date());
-  dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null };
+  dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null, adjustments:{} };
   try{
     const raw = localStorage.getItem('day:'+today);
     if(raw){
       const parsed = JSON.parse(raw);
       if(parsed && parsed.date === today) dayData = parsed;
     }
-    storageOk = true;
   }catch(e){
-    storageOk = false;
-    showStatus('Este navegador não está permitindo salvar dados aqui (talvez modo privado). Use a aba normal do Safari.', true);
+    showStatus('Este navegador não está permitindo salvar dados aqui (talvez aba anônima). Use uma aba normal.', true);
   }
   render();
 }
@@ -373,132 +396,15 @@ function loadDay(){
 function saveDay(){
   try{
     localStorage.setItem('day:'+dayData.date, JSON.stringify(dayData));
-    storageOk = true;
   }catch(e){
-    storageOk = false;
-    showStatus('Não consegui salvar os dados neste navegador agora.', true);
+    showStatus('Não consegui salvar os dados agora neste navegador.', true);
   }
-}
-
-function buildBackupJSON(){
-  return JSON.stringify(dayData, null, 2);
-}
-
-function buildBackupText(){
-  const endTime = dayData.finalized ? new Date(dayData.finalizedAt) : new Date();
-  const totals = computeTotals(dayData.date, dayData.events, endTime);
-  let lines = [];
-  lines.push('Registro de horas — ' + dayData.date);
-  lines.push(dayData.finalized ? 'Status: finalizado (' + dayData.finalizeMode + ') às ' + fmtHM(new Date(dayData.finalizedAt)) : 'Status: em aberto');
-  lines.push('');
-  lines.push('Registros:');
-  dayData.events.forEach(ev => {
-    lines.push('- ' + labelFor(ev.station) + ' às ' + fmtHM(new Date(ev.time)));
-  });
-  lines.push('');
-  lines.push('Totais:');
-  STATIONS.forEach(s => {
-    const t = totals[s] || {teiji:0, zangyo:0};
-    lines.push(labelFor(s) + ': teiji ' + fmtDur(t.teiji) + ' / zangyo ' + fmtDur(t.zangyo));
-  });
-  const t3a = totals['3A'] || {teiji:0, zangyo:0};
-  const t3b = totals['3B'] || {teiji:0, zangyo:0};
-  lines.push(labelFor('3A') + ' + ' + labelFor('3B') + ': teiji ' + fmtDur(t3a.teiji+t3b.teiji) + ' / zangyo ' + fmtDur(t3a.zangyo+t3b.zangyo));
-  lines.push('');
-  lines.push('--- não apague a linha abaixo, ela serve para restaurar ---');
-  lines.push('DADOS:' + buildBackupJSON());
-  return lines.join('\n');
-}
-
-async function performClipboardCopy(text){
-  try{
-    await navigator.clipboard.writeText(text);
-    return true;
-  }catch(e){ /* segue pro fallback */ }
-  try{
-    el.backupTextArea.value = text;
-    el.backupTextArea.select();
-    const ok = document.execCommand('copy');
-    if(ok) return true;
-  }catch(e){ /* ignora */ }
-  return false;
-}
-
-function downloadBackupFile(){
-  const text = buildBackupText();
-  el.backupTextArea.value = text;
-  try{
-    const blob = new Blob([text], {type:'text/plain'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'registro-horas-' + dayData.date + '.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    showStatus('Arquivo gerado — deve abrir a tela de salvar/compartilhar.');
-  }catch(e){
-    showStatus('Não consegui gerar o arquivo. Use o texto acima e copie manualmente.', true);
-  }
-}
-
-async function copyBackup(){
-  const text = buildBackupText();
-  el.backupTextArea.value = text;
-  const ok = await performClipboardCopy(text);
-  if(ok){
-    showStatus('Backup copiado para a área de transferência!');
-  } else {
-    showStatus('Não consegui copiar automaticamente. Toque no texto acima, ele já vem selecionado — é só copiar manualmente.', true);
-  }
-}
-
-let pendingMismatchRestore = null;
-function restoreFromTextarea(){
-  const pasted = el.restoreTextArea.value;
-  if(!pasted || !pasted.trim()){
-    showStatus('Cole o texto do backup no campo acima primeiro.', true);
-    return;
-  }
-  if(pendingMismatchRestore){
-    applyRestore(pendingMismatchRestore);
-    pendingMismatchRestore = null;
-    el.restoreBtn.textContent = 'Restaurar deste texto';
-    return;
-  }
-  const marker = 'DADOS:';
-  const idx = pasted.indexOf(marker);
-  if(idx === -1){
-    showStatus('Não encontrei os dados nesse texto. Cole o backup completo, do jeito que foi copiado.', true);
-    return;
-  }
-  let restored;
-  try{
-    const jsonPart = pasted.slice(idx + marker.length).trim();
-    restored = JSON.parse(jsonPart);
-    if(!restored || !restored.date || !Array.isArray(restored.events)) throw new Error('formato inválido');
-  }catch(e){
-    showStatus('Não consegui ler esse backup. Confira se colou o texto completo.', true);
-    return;
-  }
-  if(restored.date !== today){
-    pendingMismatchRestore = restored;
-    el.restoreBtn.textContent = 'Confirmar mesmo assim?';
-    showStatus('Esse backup é do dia ' + restored.date + ', diferente de hoje. Toque em "Confirmar mesmo assim?" para restaurar.', true);
-    return;
-  }
-  applyRestore(restored);
-}
-function applyRestore(restored){
-  dayData = restored;
-  closeFinalizePanel();
-  render();
-  saveDay();
-  showStatus('Backup restaurado com sucesso.');
 }
 
 let pendingStation = null;
+
+const LUNCH_START = '11:20';
+const LUNCH_END = '12:00';
 
 function computeEventTime(){
   if(dayData.events.length === 0){
@@ -516,7 +422,7 @@ function computeEventTime(){
 function selectStation(station){
   if(dayData.finalized) return;
   const last = dayData.events[dayData.events.length-1];
-  if(last && last.station === station) return;
+  if(last && last.station === station) return; // já está nessa estação
   pendingStation = station;
   const { afterLunch } = computeEventTime();
   el.selectConfirmText.textContent = afterLunch
@@ -525,11 +431,13 @@ function selectStation(station){
   el.selectConfirmPanel.hidden = false;
   updatePendingHighlight();
 }
+
 function cancelSelect(){
   pendingStation = null;
   el.selectConfirmPanel.hidden = true;
   updatePendingHighlight();
 }
+
 function confirmSelect(){
   if(!pendingStation) return;
   const station = pendingStation;
@@ -540,11 +448,13 @@ function confirmSelect(){
   saveDay();
   render();
 }
+
 function updatePendingHighlight(){
   document.querySelectorAll('.station-btn').forEach(btn => {
     btn.classList.toggle('pending', btn.dataset.station === pendingStation);
   });
 }
+
 el.cancelSelectBtn.addEventListener('click', cancelSelect);
 el.confirmSelectBtn.addEventListener('click', confirmSelect);
 
@@ -556,7 +466,7 @@ function undoLast(){
 }
 
 let resetArmed = false;
-function resetDay(){
+async function resetDay(){
   if(!resetArmed){
     resetArmed = true;
     el.resetBtn.textContent = 'Confirmar apagar?';
@@ -568,14 +478,15 @@ function resetDay(){
   }
   resetArmed = false;
   el.resetBtn.textContent = 'Início do dia';
-  dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null };
+  dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null, adjustments:{} };
   closeFinalizePanel();
-  saveDay();
+  await saveDay();
   render();
   showStatus('Novo dia iniciado.');
 }
 
 let selectedMode = 'teiji';
+
 function openFinalizePanel(){
   if(dayData.finalized) return;
   if(dayData.events.length===0){
@@ -598,7 +509,7 @@ el.modeTeijiBtn.addEventListener('click', () => { selectedMode = 'teiji'; update
 el.modeZangyoBtn.addEventListener('click', () => { selectedMode = 'zangyo'; updateModeButtons(); });
 el.cancelFinalizeBtn.addEventListener('click', closeFinalizePanel);
 
-function confirmFinalize(){
+async function confirmFinalize(){
   let endTime, zangyoHours = null;
   if(selectedMode === 'teiji'){
     endTime = timeOnDate(today, TEIJI_END);
@@ -622,54 +533,18 @@ function confirmFinalize(){
 }
 el.confirmFinalizeBtn.addEventListener('click', confirmFinalize);
 
-let editingTimes = false;
-function parseDurationInputs(idx){
-  const hInput = el.eventsList.querySelector('.seg-h-input[data-idx="'+idx+'"]');
-  const mInput = el.eventsList.querySelector('.seg-m-input[data-idx="'+idx+'"]');
-  if(!hInput || !mInput) return null;
-  const h = parseInt(hInput.value, 10);
-  const m = parseInt(mInput.value, 10);
-  if(isNaN(h) || isNaN(m) || h < 0 || m < 0 || m > 59) return null;
-  return h*3600000 + m*60000;
-}
-
 function renderEventsList(){
   el.eventsList.innerHTML = '';
   if(dayData.events.length === 0 && !dayData.finalized){
     el.eventsList.innerHTML = '<div class="empty-msg">Nenhum registro ainda hoje.</div>';
     return;
   }
-  const n = dayData.events.length;
-  const endTimeNow = dayData.finalized ? new Date(dayData.finalizedAt) : new Date();
-
-  dayData.events.forEach((ev, idx) => {
+  dayData.events.forEach(ev => {
     const row = document.createElement('div');
     row.className = 'event-row';
-    const segStart = new Date(ev.time);
-    const segEnd = idx+1 < n ? new Date(dayData.events[idx+1].time) : endTimeNow;
-    const durMs = segEnd - segStart;
-    const isLastOngoing = (idx === n-1) && !dayData.finalized;
-
-    if(editingTimes){
-      const hh = Math.floor(durMs/3600000);
-      const mm = Math.floor((durMs%3600000)/60000);
-      if(isLastOngoing){
-        row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + ' <small style="color:var(--muted); font-weight:400;">desde ' + fmtHM(segStart) + '</small></span>' +
-          '<span class="ev-time" style="color:var(--muted); font-style:italic;">em andamento</span>';
-      } else {
-        row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + ' <small style="color:var(--muted); font-weight:400;">desde ' + fmtHM(segStart) + '</small></span>' +
-          '<span style="display:flex; align-items:center; gap:6px;">' +
-          '<input type="number" class="seg-h-input seg-duration-input" data-idx="' + idx + '" min="0" value="' + hh + '">' +
-          '<span style="color:var(--muted); font-size:13px;">h</span>' +
-          '<input type="number" class="seg-m-input seg-duration-input" data-idx="' + idx + '" min="0" max="59" value="' + mm + '">' +
-          '<span style="color:var(--muted); font-size:13px;">min</span></span>';
-      }
-    } else {
-      row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + '</span><span class="ev-time">' + fmtHM(segStart) + '</span>';
-    }
+    row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + '</span><span class="ev-time">' + fmtHM(new Date(ev.time)) + '</span>';
     el.eventsList.appendChild(row);
   });
-
   if(dayData.finalized){
     const row = document.createElement('div');
     row.className = 'event-row ev-final';
@@ -677,113 +552,88 @@ function renderEventsList(){
     row.innerHTML = '<span class="ev-station">' + label + '</span><span class="ev-time">' + fmtHM(new Date(dayData.finalizedAt)) + '</span>';
     el.eventsList.appendChild(row);
   }
-
-  if(editingTimes){
-    const hint = document.createElement('div');
-    hint.style.cssText = 'font-size:12px; color:var(--muted); margin-top:8px; margin-bottom:4px;';
-    hint.textContent = 'Ajuste a duração de um serviço — a diferença é descontada ou somada automaticamente no serviço seguinte.';
-    el.eventsList.appendChild(hint);
-
-    const actionsRow = document.createElement('div');
-    actionsRow.className = 'actions';
-    actionsRow.style.marginTop = '6px';
-    actionsRow.innerHTML = '<button class="btn" id="cancelEditTimesBtn">Cancelar</button><button class="btn confirm" id="saveEditTimesBtn">Salvar ajustes</button>';
-    el.eventsList.appendChild(actionsRow);
-    document.getElementById('cancelEditTimesBtn').addEventListener('click', () => {
-      editingTimes = false;
-      document.getElementById('editTimesBtn').textContent = 'Ajustar horários';
-      renderEventsList();
-    });
-    document.getElementById('saveEditTimesBtn').addEventListener('click', saveEditedTimes);
-  }
 }
 
-function saveEditedTimes(){
-  const n = dayData.events.length;
-  const times = dayData.events.map(ev => new Date(ev.time).getTime());
-  let endTimeMs = dayData.finalized ? new Date(dayData.finalizedAt).getTime() : new Date().getTime();
+let adjustMode = false;
+
+function openAdjustPanel(){
+  if(dayData.events.length === 0){
+    showStatus('Ainda não há registros hoje para ajustar.', true);
+    return;
+  }
+  adjustMode = true;
+  document.getElementById('editTimesBtn').textContent = 'Fechar ajuste';
+  el.adjustHint.hidden = false;
+  el.adjustHint.textContent = 'Ordem fixa: 1 → 2 → 3A → 3B → 4. Teiji e zangyo são grupos independentes — cada um pula estações zeradas naquela categoria ao procurar a próxima pra compensar. Nunca mexe no horário final.';
+  el.adjustActions.hidden = false;
+  render();
+}
+function closeAdjustPanel(){
+  adjustMode = false;
+  document.getElementById('editTimesBtn').textContent = 'Ajustar horários';
+  el.adjustHint.hidden = true;
+  el.adjustActions.hidden = true;
+  render();
+}
+el.cancelAdjustBtn.addEventListener('click', closeAdjustPanel);
+el.saveAdjustBtn.addEventListener('click', saveAdjustPanel);
+
+function readCategoryInput(category, station){
+  const hInput = el.totalsBody.querySelector('.'+category+'-h-input[data-station="'+station+'"]');
+  const mInput = el.totalsBody.querySelector('.'+category+'-m-input[data-station="'+station+'"]');
+  if(!hInput || !mInput) return null; // estação não exibida (sem horas hoje) — nada a ler
+  const h = parseInt(hInput.value, 10), m = parseInt(mInput.value, 10);
+  if(isNaN(h) || isNaN(m) || h < 0 || m < 0 || m > 59) return NaN; // exibida mas com valor inválido
+  return h*3600000 + m*60000;
+}
+
+function saveAdjustPanel(){
+  const currentTotals = getAdjustedTotals(); // fonte de verdade dos valores atuais, exibidos ou não
+  const draft = JSON.parse(JSON.stringify(dayData.adjustments || {})); // rascunho — só aplica em dayData se tudo validar
   let errorMsg = null;
 
-  for(let idx = 0; idx < n; idx++){
-    if(idx === n-1 && !dayData.finalized) continue;
-    const newDur = parseDurationInputs(idx);
-    if(newDur === null){
-      errorMsg = 'Preencha horas e minutos válidos em todos os campos.';
-      break;
+  ['teiji','zangyo'].forEach(category => {
+    if(errorMsg) return;
+    const origValues = STATIONS.map(s => currentTotals[s][category]);
+
+    for(let i = 0; i < STATIONS.length; i++){
+      const s = STATIONS[i];
+      const read = readCategoryInput(category, s);
+      if(read === null) continue; // estação não exibida: nada pra editar aqui
+      if(Number.isNaN(read)){ errorMsg = 'Preencha horas e minutos válidos em todos os campos.'; break; }
+      if(read === origValues[i]) continue; // não mexido: não cascateia
+      const delta = read - origValues[i];
+      if(!draft[s]) draft[s] = {teiji:0, zangyo:0};
+      draft[s][category] = (draft[s][category]||0) + delta;
+
+      // acha a próxima estação da lista com horas nessa categoria (pulando as zeradas)
+      let targetIdx = -1;
+      for(let j = i+1; j < STATIONS.length; j++){
+        if(origValues[j] !== 0){ targetIdx = j; break; }
+      }
+      if(targetIdx !== -1){
+        const next = STATIONS[targetIdx];
+        if(!draft[next]) draft[next] = {teiji:0, zangyo:0};
+        draft[next][category] = (draft[next][category]||0) - delta;
+      }
+      // se não houver nenhuma estação seguinte com horas nessa categoria, a diferença não tem para onde ir
     }
-    const oldEnd = idx+1 < n ? times[idx+1] : endTimeMs;
-    const oldDur = oldEnd - times[idx];
-    const delta = newDur - oldDur;
-    if(delta === 0) continue;
-    if(idx+1 < n){
-      times[idx+1] += delta;
-    } else {
-      endTimeMs += delta;
-    }
-  }
+  });
 
   if(errorMsg){ showStatus(errorMsg, true); return; }
 
-  for(let i=1;i<n;i++){
-    if(times[i] <= times[i-1]){
-      showStatus('Esse ajuste deixaria os horários fora de ordem. Tente valores menores.', true);
-      return;
-    }
-  }
-  if(dayData.finalized && endTimeMs <= times[n-1]){
-    showStatus('Esse ajuste deixaria o horário final antes do último registro.', true);
+  const draftTotals = getTotalsFor(Object.assign({}, dayData, { adjustments: draft }));
+  const hasNegative = STATIONS.some(s => draftTotals[s].teiji < 0 || draftTotals[s].zangyo < 0);
+  if(hasNegative){
+    showStatus('Esse ajuste deixaria alguma estação com horas negativas. Tente valores menores.', true);
     return;
   }
 
-  dayData.events.forEach((ev, idx) => { ev.time = new Date(times[idx]).toISOString(); });
-  if(dayData.finalized) dayData.finalizedAt = new Date(endTimeMs).toISOString();
-
-  editingTimes = false;
-  document.getElementById('editTimesBtn').textContent = 'Ajustar horários';
+  dayData.adjustments = draft;
+  closeAdjustPanel();
   saveDay();
   render();
-  showStatus('Ajustado — a diferença foi compensada no próximo serviço.');
-}
-
-function appendTotalsRow(label, t, extraClass){
-  const tr = document.createElement('tr');
-  if(extraClass) tr.className = extraClass;
-  tr.innerHTML = '<td class="station-cell">' + label + '</td>' +
-    '<td class="teiji-cell">' + fmtDur(t.teiji) + '</td>' +
-    '<td class="zangyo-cell">' + fmtDur(t.zangyo) + '</td>' +
-    '<td class="total-cell">' + fmtDur(t.teiji + t.zangyo) + '</td>';
-  return tr;
-}
-
-function renderTotalsTable(totals){
-  el.totalsBody.innerHTML = '';
-  let grandT = 0, grandZ = 0, anyRow = false;
-  STATIONS.forEach(s => {
-    const t = totals[s] || {teiji:0, zangyo:0};
-    grandT += t.teiji; grandZ += t.zangyo;
-    if(t.teiji === 0 && t.zangyo === 0) return;
-    anyRow = true;
-    el.totalsBody.appendChild(appendTotalsRow(labelFor(s), t));
-  });
-  const t3a = totals['3A'] || {teiji:0, zangyo:0};
-  const t3b = totals['3B'] || {teiji:0, zangyo:0};
-  const combined = { teiji: t3a.teiji + t3b.teiji, zangyo: t3a.zangyo + t3b.zangyo };
-  if(combined.teiji > 0 || combined.zangyo > 0){
-    el.totalsBody.appendChild(appendTotalsRow(labelFor('3A') + ' + ' + labelFor('3B'), combined, 'subtotal'));
-  }
-  if(!anyRow){
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="4" style="text-align:center; color:var(--muted); padding:14px 8px; border-bottom:none;">Nenhuma hora registrada ainda</td>';
-    el.totalsBody.appendChild(tr);
-    return;
-  }
-  const grandTr = document.createElement('tr');
-  grandTr.className = 'grand';
-  grandTr.innerHTML = '<td class="station-cell">Total</td>' +
-    '<td class="teiji-cell">' + fmtDur(grandT) + '</td>' +
-    '<td class="zangyo-cell">' + fmtDur(grandZ) + '</td>' +
-    '<td class="total-cell">' + fmtDur(grandT + grandZ) + '</td>';
-  el.totalsBody.appendChild(grandTr);
+  showStatus('Ajustado — a diferença foi compensada na próxima estação da lista.');
 }
 
 function updateElapsedDisplay(){
@@ -800,14 +650,72 @@ function updateElapsedDisplay(){
   el.sinceVal.textContent = fmtElapsed(elapsed) + ' nesta estação';
 }
 
+function durationInputPair(category, station, ms){
+  const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+  return '<span style="display:inline-flex; align-items:center; gap:2px;">' +
+    '<input type="number" class="'+category+'-h-input mini-duration-input" data-station="'+station+'" min="0" value="'+h+'">' +
+    '<span style="font-size:10px; color:var(--muted);">h</span>' +
+    '<input type="number" class="'+category+'-m-input mini-duration-input" data-station="'+station+'" min="0" max="59" value="'+m+'">' +
+    '<span style="font-size:10px; color:var(--muted);">m</span></span>';
+}
+
+function appendTotalsRow(label, t, station, extraClass){
+  const tr = document.createElement('tr');
+  if(extraClass) tr.className = extraClass;
+  if(adjustMode && station){
+    tr.innerHTML = '<td class="station-cell">' + label + '</td>' +
+      '<td>' + durationInputPair('teiji', station, t.teiji) + '</td>' +
+      '<td>' + durationInputPair('zangyo', station, t.zangyo) + '</td>' +
+      '<td class="total-cell">' + fmtDur(t.teiji + t.zangyo) + '</td>';
+  } else {
+    tr.innerHTML = '<td class="station-cell">' + label + '</td>' +
+      '<td class="teiji-cell">' + fmtDur(t.teiji) + '</td>' +
+      '<td class="zangyo-cell">' + fmtDur(t.zangyo) + '</td>' +
+      '<td class="total-cell">' + fmtDur(t.teiji + t.zangyo) + '</td>';
+  }
+  return tr;
+}
+
+function renderTotalsTable(totals){
+  el.totalsBody.innerHTML = '';
+  let grandT = 0, grandZ = 0, anyRow = false;
+  STATIONS.forEach(s => {
+    const t = totals[s] || {teiji:0, zangyo:0};
+    grandT += t.teiji; grandZ += t.zangyo;
+    if(t.teiji === 0 && t.zangyo === 0) return; // oculta estações sem horas registradas hoje (também durante o ajuste)
+    anyRow = true;
+    el.totalsBody.appendChild(appendTotalsRow(labelFor(s), t, s));
+  });
+  const t3a = totals['3A'] || {teiji:0, zangyo:0};
+  const t3b = totals['3B'] || {teiji:0, zangyo:0};
+  const combined = { teiji: t3a.teiji + t3b.teiji, zangyo: t3a.zangyo + t3b.zangyo };
+  if(!adjustMode && (combined.teiji > 0 || combined.zangyo > 0)){
+    el.totalsBody.appendChild(appendTotalsRow(labelFor('3A') + ' + ' + labelFor('3B'), combined, null, 'subtotal'));
+  }
+  if(!anyRow){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="4" style="text-align:center; color:var(--muted); padding:14px 8px; border-bottom:none;">Nenhuma hora registrada ainda</td>';
+    el.totalsBody.appendChild(tr);
+    return;
+  }
+  const grandTr = document.createElement('tr');
+  grandTr.className = 'grand';
+  grandTr.innerHTML = '<td class="station-cell">Total</td>' +
+    '<td class="teiji-cell">' + fmtDur(grandT) + '</td>' +
+    '<td class="zangyo-cell">' + fmtDur(grandZ) + '</td>' +
+    '<td class="total-cell">' + fmtDur(grandT + grandZ) + '</td>';
+  el.totalsBody.appendChild(grandTr);
+}
+
 function render(){
   el.dateLine.textContent = fmtDateHuman(dayData.date);
+
   const lastEvent = dayData.events[dayData.events.length-1];
   const activeStation = lastEvent ? lastEvent.station : null;
 
   document.querySelectorAll('.station-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.station === activeStation && !dayData.finalized);
-    btn.disabled = dayData.finalized;
+    btn.disabled = dayData.finalized || adjustMode;
   });
   updatePendingHighlight();
 
@@ -820,16 +728,15 @@ function render(){
     el.undoBtn.disabled = true;
   } else {
     el.finalizedBanner.hidden = true;
-    el.finalizeBtn.disabled = false;
-    el.undoBtn.disabled = dayData.events.length === 0;
+    el.finalizeBtn.disabled = adjustMode;
+    el.undoBtn.disabled = dayData.events.length === 0 || adjustMode;
     el.currentStationVal.textContent = activeStation || '—';
   }
   updateElapsedDisplay();
+
   renderEventsList();
 
-  const endTime = dayData.finalized ? new Date(dayData.finalizedAt) : new Date();
-  const totals = computeTotals(dayData.date, dayData.events, endTime);
-  renderTotalsTable(totals);
+  renderTotalsTable(getAdjustedTotals());
 }
 
 function tickClock(){
@@ -838,8 +745,7 @@ function tickClock(){
   if(dateKeyOf(now) !== dayData.date){
     loadDay();
   } else if(!dayData.finalized){
-    const totals = computeTotals(dayData.date, dayData.events, now);
-    renderTotalsTable(totals);
+    renderTotalsTable(getAdjustedTotals());
     updateElapsedDisplay();
   }
 }
@@ -848,19 +754,91 @@ setInterval(tickClock, 1000);
 el.finalizeBtn.addEventListener('click', openFinalizePanel);
 el.undoBtn.addEventListener('click', undoLast);
 el.resetBtn.addEventListener('click', resetDay);
-document.getElementById('backupBtn').addEventListener('click', copyBackup);
-document.getElementById('downloadBackupBtn').addEventListener('click', downloadBackupFile);
-document.getElementById('restoreBtn').addEventListener('click', restoreFromTextarea);
-el.backupTextArea.addEventListener('click', () => el.backupTextArea.select());
-el.backupTextArea.addEventListener('focus', () => el.backupTextArea.select());
 document.getElementById('editTimesBtn').addEventListener('click', () => {
-  if(dayData.events.length === 0){
-    showStatus('Ainda não há registros para ajustar.', true);
+  if(adjustMode){
+    closeAdjustPanel();
+  } else {
+    openAdjustPanel();
+  }
+});
+
+function totalsTableHTML(totals){
+  let grandT = 0, grandZ = 0, rows = '';
+  STATIONS.forEach(s => {
+    const t = totals[s] || {teiji:0, zangyo:0};
+    grandT += t.teiji; grandZ += t.zangyo;
+    if(t.teiji === 0 && t.zangyo === 0) return;
+    rows += '<tr><td class="station-cell">' + labelFor(s) + '</td>' +
+      '<td class="teiji-cell">' + fmtDur(t.teiji) + '</td>' +
+      '<td class="zangyo-cell">' + fmtDur(t.zangyo) + '</td>' +
+      '<td class="total-cell">' + fmtDur(t.teiji + t.zangyo) + '</td></tr>';
+  });
+  const t3a = totals['3A'] || {teiji:0, zangyo:0};
+  const t3b = totals['3B'] || {teiji:0, zangyo:0};
+  const combined = { teiji: t3a.teiji + t3b.teiji, zangyo: t3a.zangyo + t3b.zangyo };
+  if(combined.teiji > 0 || combined.zangyo > 0){
+    rows += '<tr class="subtotal"><td class="station-cell">' + labelFor('3A') + ' + ' + labelFor('3B') + '</td>' +
+      '<td class="teiji-cell">' + fmtDur(combined.teiji) + '</td>' +
+      '<td class="zangyo-cell">' + fmtDur(combined.zangyo) + '</td>' +
+      '<td class="total-cell">' + fmtDur(combined.teiji + combined.zangyo) + '</td></tr>';
+  }
+  rows += '<tr class="grand"><td class="station-cell">Total</td>' +
+    '<td class="teiji-cell">' + fmtDur(grandT) + '</td>' +
+    '<td class="zangyo-cell">' + fmtDur(grandZ) + '</td>' +
+    '<td class="total-cell">' + fmtDur(grandT + grandZ) + '</td></tr>';
+  return '<table class="totals"><thead><tr><th>Estação</th><th>Teiji</th><th>Zangyo</th><th>Total</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function listDayKeys(){
+  const keys = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith('day:') && k !== 'day:'+today) keys.push(k);
+  }
+  return keys.sort().reverse();
+}
+
+function loadHistoryList(){
+  const keys = listDayKeys();
+  if(keys.length === 0){
+    el.historyList.innerHTML = '<div class="empty-msg">Nenhum dia anterior registrado ainda.</div>';
     return;
   }
-  editingTimes = !editingTimes;
-  document.getElementById('editTimesBtn').textContent = editingTimes ? 'Fechar ajuste' : 'Ajustar horários';
-  renderEventsList();
+  el.historyList.innerHTML = '';
+  keys.forEach(key => {
+    const dayKey = key.replace('day:','');
+    let dd;
+    try{ dd = JSON.parse(localStorage.getItem(key)); }catch(e){ return; }
+    if(!dd) return;
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    const badge = dd.finalized ? '<span class="badge done">finalizado</span>' : '<span class="badge open">em aberto</span>';
+    item.innerHTML = '<span>' + fmtDateHuman(dayKey) + '</span>' + badge;
+    item.addEventListener('click', () => showHistoryDetail(dayKey, dd));
+    el.historyList.appendChild(item);
+  });
+}
+
+function showHistoryDetail(dayKey, dd){
+  const totals = getTotalsFor(dd);
+  el.historyList.innerHTML = '<a class="back-link" id="historyBack">&larr; Voltar ao histórico</a>' +
+    '<div class="section-label" style="margin-top:0;">' + fmtDateHuman(dayKey) + (dd.finalized ? ' · finalizado' : ' · em aberto') + '</div>' +
+    totalsTableHTML(totals);
+  document.getElementById('historyBack').addEventListener('click', (e) => { e.preventDefault(); loadHistoryList(); });
+}
+
+el.tabToday.addEventListener('click', () => {
+  el.tabToday.classList.add('active');
+  el.tabHistory.classList.remove('active');
+  el.viewToday.hidden = false;
+  el.viewHistory.hidden = true;
+});
+el.tabHistory.addEventListener('click', () => {
+  el.tabHistory.classList.add('active');
+  el.tabToday.classList.remove('active');
+  el.viewToday.hidden = true;
+  el.viewHistory.hidden = false;
+  loadHistoryList();
 });
 
 loadDay();
