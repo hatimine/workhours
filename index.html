@@ -422,9 +422,9 @@ function computeEventTime(){
 function selectStation(station){
   if(dayData.finalized) return;
   const last = dayData.events[dayData.events.length-1];
-  if(last && last.station === station) return; // já está nessa estação
-  pendingStation = station;
   const { afterLunch } = computeEventTime();
+  if(last && last.station === station && !afterLunch) return; // já está nessa estação (fora da retomada do almoço)
+  pendingStation = station;
   el.selectConfirmText.textContent = afterLunch
     ? 'Você vai retomar o serviço em ' + labelFor(station) + ' às 12:00 (volta do almoço).'
     : 'Você vai começar a trabalhar em ' + labelFor(station) + '.';
