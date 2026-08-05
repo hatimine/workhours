@@ -591,10 +591,13 @@ function saveAdjustPanel(){
   const currentTotals = getAdjustedTotals(); // fonte de verdade dos valores atuais, exibidos ou não
   const draft = JSON.parse(JSON.stringify(dayData.adjustments || {})); // rascunho — só aplica em dayData se tudo validar
   let errorMsg = null;
+  // arredonda pra minuto cheio (igual ao que é mostrado nos campos h/min), senão sobras de segundos
+  // fariam o sistema achar que um campo "mudou" mesmo sem o usuário ter mexido nele
+  const roundToMinute = ms => Math.floor(ms/60000)*60000;
 
   ['teiji','zangyo'].forEach(category => {
     if(errorMsg) return;
-    const origValues = STATIONS.map(s => currentTotals[s][category]);
+    const origValues = STATIONS.map(s => roundToMinute(currentTotals[s][category]));
 
     for(let i = 0; i < STATIONS.length; i++){
       const s = STATIONS[i];
