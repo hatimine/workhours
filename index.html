@@ -593,7 +593,7 @@ function saveAdjustPanel(){
   let errorMsg = null;
   // arredonda pra minuto cheio (igual ao que é mostrado nos campos h/min), senão sobras de segundos
   // fariam o sistema achar que um campo "mudou" mesmo sem o usuário ter mexido nele
-  const roundToMinute = ms => Math.floor(ms/60000)*60000;
+  const roundToMinute = ms => Math.round(ms/60000)*60000;
 
   ['teiji','zangyo'].forEach(category => {
     if(errorMsg) return;
@@ -654,7 +654,8 @@ function updateElapsedDisplay(){
 }
 
 function durationInputPair(category, station, ms){
-  const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+  const totalMin = Math.round(ms/60000);
+  const h = Math.floor(totalMin/60), m = totalMin%60;
   return '<span style="display:inline-flex; align-items:center; gap:2px;">' +
     '<input type="number" class="'+category+'-h-input mini-duration-input" data-station="'+station+'" min="0" value="'+h+'">' +
     '<span style="font-size:10px; color:var(--muted);">h</span>' +
