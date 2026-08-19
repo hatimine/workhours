@@ -240,7 +240,7 @@ function fmtDur(ms){
   const totalMin = Math.round(ms/60000);
   const h = Math.floor(totalMin/60);
   const m = totalMin%60;
-  const decimal = parseFloat((ms/3600000).toFixed(2)).toString();
+  const decimal = parseFloat((totalMin/60).toFixed(2)).toString();
   return h+':'+pad2(m)+'/'+decimal;
 }
 function fmtElapsed(ms){
@@ -823,10 +823,42 @@ function loadHistoryList(){
   });
 }
 
+function buildRealSegmentsHTML(dd){
+  let endTime;
+  if(dd.finalized) endTime = new Date(dd.finalizedAt);
+  else if(dd.date === today) endTime = new Date();
+  else endTime = dd.events.length ? new Date(dd.events[dd.events.length-1].time) : null;
+
+  const byStation = {};
+  STATIONS.forEach(s => byStation[s] = []);
+  for(let i = 0; i < dd.events.length; i++){
+    const start = new Date(dd.events[i].time);
+    const end = i+1 < dd.events.length ? new Date(dd.events[i+1].time) : endTime;
+    if(!end || !(end > start)) continue;
+    const st = dd.events[i].station;
+    if(!byStation[st]) byStation[st] = [];
+    byStation[st].push(start.getHours().toString().padStart(2,'0')+':'+start.getMinutes().toString().padStart(2,'0') + ' – ' +
+      end.getHours().toString().padStart(2,'0')+':'+end.getMinutes().toString().padStart(2,'0'));
+  }
+
+  let html = '';
+  STATIONS.forEach(s => {
+    if(byStation[s].length === 0) return;
+    html += '<div class="event-row" style="flex-direction:column; align-items:stretch;">' +
+      '<div class="ev-station" style="margin-bottom:6px;">' + labelFor(s) + '</div>' +
+      byStation[s].map(seg => '<div style="font-family:monospace; font-size:13px; color:var(--text); padding:2px 0;">' + seg + '</div>').join('') +
+      '</div>';
+  });
+  return html || '<div class="empty-msg">Sem registros de horário para este dia.</div>';
+}
+
 function showHistoryDetail(dayKey, dd){
   const totals = getTotalsFor(dd);
   el.historyList.innerHTML = '<a class="back-link" id="historyBack">&larr; Voltar ao histórico</a>' +
     '<div class="section-label" style="margin-top:0;">' + fmtDateHuman(dayKey) + (dd.finalized ? ' · finalizado' : ' · em aberto') + '</div>' +
+    '<div class="section-label">Horários reais</div>' +
+    buildRealSegmentsHTML(dd) +
+    '<div class="section-label">Totais (com ajustes)</div>' +
     totalsTableHTML(totals);
   document.getElementById('historyBack').addEventListener('click', (e) => { e.preventDefault(); loadHistoryList(); });
 }
