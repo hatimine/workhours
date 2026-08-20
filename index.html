@@ -312,9 +312,12 @@ function getTotalsFor(dd){
   }
   const raw = computeTotals(dd.date, dd.events, endTime);
   const totals = {};
+  const roundMin = ms => Math.round(ms/60000)*60000;
   STATIONS.forEach(s => {
     const adj = (dd.adjustments && dd.adjustments[s]) || {teiji:0, zangyo:0};
-    totals[s] = { teiji: raw[s].teiji + (adj.teiji||0), zangyo: raw[s].zangyo + (adj.zangyo||0) };
+    // arredonda pra minuto cheio aqui, na origem — assim toda soma feita depois (linhas, subtotal, total)
+    // é sempre sobre valores já redondos, e nunca fica um resto de segundos escondido
+    totals[s] = { teiji: roundMin(raw[s].teiji + (adj.teiji||0)), zangyo: roundMin(raw[s].zangyo + (adj.zangyo||0)) };
   });
   return totals;
 }
@@ -588,16 +591,13 @@ function readCategoryInput(category, station){
 }
 
 function saveAdjustPanel(){
-  const currentTotals = getAdjustedTotals(); // fonte de verdade dos valores atuais, exibidos ou não
+  const currentTotals = getAdjustedTotals(); // já vem arredondado pra minuto cheio, na origem
   const draft = JSON.parse(JSON.stringify(dayData.adjustments || {})); // rascunho — só aplica em dayData se tudo validar
   let errorMsg = null;
-  // arredonda pra minuto cheio (igual ao que é mostrado nos campos h/min), senão sobras de segundos
-  // fariam o sistema achar que um campo "mudou" mesmo sem o usuário ter mexido nele
-  const roundToMinute = ms => Math.round(ms/60000)*60000;
 
   ['teiji','zangyo'].forEach(category => {
     if(errorMsg) return;
-    const origValues = STATIONS.map(s => roundToMinute(currentTotals[s][category]));
+    const origValues = STATIONS.map(s => currentTotals[s][category]);
 
     for(let i = 0; i < STATIONS.length; i++){
       const s = STATIONS[i];
