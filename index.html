@@ -591,13 +591,17 @@ function readCategoryInput(category, station){
 }
 
 function saveAdjustPanel(){
-  const currentTotals = getAdjustedTotals(); // já vem arredondado pra minuto cheio, na origem
   const draft = JSON.parse(JSON.stringify(dayData.adjustments || {})); // rascunho — só aplica em dayData se tudo validar
   let errorMsg = null;
 
   ['teiji','zangyo'].forEach(category => {
     if(errorMsg) return;
-    const origValues = STATIONS.map(s => currentTotals[s][category]);
+    // valores congelados no momento em que o painel foi aberto — não usa o relógio atual,
+    // senão um segundo passando entre abrir e salvar faria o sistema achar que algo mudou sozinho
+    const origValues = STATIONS.map(s => {
+      const hInput = el.totalsBody.querySelector('.'+category+'-h-input[data-station="'+s+'"]');
+      return hInput ? Number(hInput.dataset.orig) : 0;
+    });
 
     for(let i = 0; i < STATIONS.length; i++){
       const s = STATIONS[i];
@@ -657,7 +661,7 @@ function durationInputPair(category, station, ms){
   const totalMin = Math.round(ms/60000);
   const h = Math.floor(totalMin/60), m = totalMin%60;
   return '<span style="display:inline-flex; align-items:center; gap:2px;">' +
-    '<input type="number" class="'+category+'-h-input mini-duration-input" data-station="'+station+'" min="0" value="'+h+'">' +
+    '<input type="number" class="'+category+'-h-input mini-duration-input" data-station="'+station+'" data-orig="'+(totalMin*60000)+'" min="0" value="'+h+'">' +
     '<span style="font-size:10px; color:var(--muted);">h</span>' +
     '<input type="number" class="'+category+'-m-input mini-duration-input" data-station="'+station+'" min="0" max="59" value="'+m+'">' +
     '<span style="font-size:10px; color:var(--muted);">m</span></span>';
@@ -749,7 +753,7 @@ function tickClock(){
   if(dateKeyOf(now) !== dayData.date){
     loadDay();
   } else if(!dayData.finalized){
-    renderTotalsTable(getAdjustedTotals());
+    if(!adjustMode) renderTotalsTable(getAdjustedTotals()); // não redesenha durante o ajuste — senão apaga o que está sendo digitado
     updateElapsedDisplay();
   }
 }
