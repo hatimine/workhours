@@ -133,6 +133,7 @@
       <div>
         <div class="clock" id="clock">--:--:--</div>
         <div class="date-line" id="dateLine">—</div>
+        <div class="date-line" id="versionTag" style="font-size:10px; opacity:0.6;">—</div>
       </div>
       <button class="reset-btn" id="resetBtn">Início do dia</button>
     </div>
@@ -213,6 +214,7 @@
 </div>
 
 <script>
+const APP_VERSION = 'v2026-08-22-01 (congelamento do ajuste + arredondamento na origem)';
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
@@ -881,6 +883,7 @@ el.tabHistory.addEventListener('click', () => {
   loadHistoryList();
 });
 
+document.getElementById('versionTag').textContent = APP_VERSION;
 loadDay();
 </script>
 </body>
