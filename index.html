@@ -124,6 +124,14 @@
   .badge.done{background:rgba(95,184,143,0.15); color:var(--teiji);}
   .badge.open{background:rgba(240,165,55,0.15); color:var(--amber);}
   .back-link{color:var(--amber); font-size:13px; font-weight:600; margin-bottom:12px; display:inline-block;}
+  .month-cards{display:flex; gap:10px; margin-bottom:18px;}
+  .month-card{flex:1; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px;}
+  .month-card .month-title{font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:8px;}
+  .month-card .month-row{display:flex; justify-content:space-between; font-size:12.5px; padding:2px 0;}
+  .month-card .month-row .label{color:var(--muted);}
+  .month-card .month-row.total .value{font-weight:800; color:var(--text);}
+  .month-card .teiji-value{color:var(--teiji); font-family:monospace;}
+  .month-card .zangyo-value{color:var(--zangyo); font-family:monospace;}
 </style>
 </head>
 <body>
@@ -145,6 +153,8 @@
 
   <main>
     <section id="view-history" hidden>
+      <div id="monthSummary"></div>
+      <div class="section-label">Dias registrados</div>
       <div id="historyList"></div>
     </section>
 
@@ -214,7 +224,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v2026-08-22-01 (congelamento do ajuste + arredondamento na origem)';
+const APP_VERSION = 'v2026-08-22-03 (teiji/zangyo separados na lista de dias)';
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
@@ -359,6 +369,7 @@ const el = {
   viewToday: document.getElementById('view-today'),
   viewHistory: document.getElementById('view-history'),
   historyList: document.getElementById('historyList'),
+  monthSummary: document.getElementById('monthSummary'),
   selectConfirmPanel: document.getElementById('selectConfirmPanel'),
   selectConfirmText: document.getElementById('selectConfirmText'),
   cancelSelectBtn: document.getElementById('cancelSelectBtn'),
@@ -808,6 +819,58 @@ function listDayKeys(){
   return keys.sort().reverse();
 }
 
+const MONTH_NAMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function monthLabel(monthKey){
+  const [y,m] = monthKey.split('-').map(Number);
+  return MONTH_NAMES[m-1] + '/' + y;
+}
+function prevMonthKey(monthKey){
+  const [y,m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m-2, 1); // m-1 é o mês atual (0-indexado); -1 de novo pra voltar um mês
+  return d.getFullYear() + '-' + pad2(d.getMonth()+1);
+}
+function computeMonthlyTotals(monthKey){
+  let teiji = 0, zangyo = 0, hasAny = false;
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(!k || !k.startsWith('day:')) continue;
+    const dateStr = k.replace('day:','');
+    if(!dateStr.startsWith(monthKey)) continue;
+    let dd;
+    if(dateStr === today){
+      dd = dayData; // usa o estado atual em memória, mais atualizado que o último salvo
+    } else {
+      try{ dd = JSON.parse(localStorage.getItem(k)); }catch(e){ continue; }
+    }
+    if(!dd) continue;
+    hasAny = true;
+    const t = getTotalsFor(dd);
+    STATIONS.forEach(s => { teiji += t[s].teiji; zangyo += t[s].zangyo; });
+  }
+  return { teiji, zangyo, hasAny };
+}
+function monthCardHTML(title, monthKey){
+  const t = computeMonthlyTotals(monthKey);
+  if(!t.hasAny){
+    return '<div class="month-card"><div class="month-title">' + title + '</div>' +
+      '<div style="color:var(--muted); font-size:12px;">Sem registros</div></div>';
+  }
+  return '<div class="month-card">' +
+    '<div class="month-title">' + title + ' — ' + monthLabel(monthKey) + '</div>' +
+    '<div class="month-row"><span class="label">Teiji</span><span class="value teiji-value">' + fmtDur(t.teiji) + '</span></div>' +
+    '<div class="month-row"><span class="label">Zangyo</span><span class="value zangyo-value">' + fmtDur(t.zangyo) + '</span></div>' +
+    '<div class="month-row total"><span class="label">Total</span><span class="value">' + fmtDur(t.teiji + t.zangyo) + '</span></div>' +
+    '</div>';
+}
+function renderMonthSummary(){
+  const currentMonthKey = today.slice(0,7);
+  const lastMonthKey = prevMonthKey(currentMonthKey);
+  el.monthSummary.innerHTML = '<div class="month-cards">' +
+    monthCardHTML('Mês atual (até agora)', currentMonthKey) +
+    monthCardHTML('Mês passado', lastMonthKey) +
+    '</div>';
+}
+
 function loadHistoryList(){
   const keys = listDayKeys();
   if(keys.length === 0){
@@ -820,10 +883,21 @@ function loadHistoryList(){
     let dd;
     try{ dd = JSON.parse(localStorage.getItem(key)); }catch(e){ return; }
     if(!dd) return;
+    const t = getTotalsFor(dd);
+    let grandT = 0, grandZ = 0;
+    STATIONS.forEach(s => { grandT += t[s].teiji; grandZ += t[s].zangyo; });
     const item = document.createElement('div');
     item.className = 'history-item';
+    item.style.flexDirection = 'column';
+    item.style.alignItems = 'stretch';
     const badge = dd.finalized ? '<span class="badge done">finalizado</span>' : '<span class="badge open">em aberto</span>';
-    item.innerHTML = '<span>' + fmtDateHuman(dayKey) + '</span>' + badge;
+    item.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+        '<span>' + fmtDateHuman(dayKey) + '</span>' + badge +
+      '</div>' +
+      '<div style="display:flex; gap:14px; margin-top:6px; font-size:12px; font-family:monospace;">' +
+        '<span class="teiji-value" style="color:var(--teiji);">Teiji ' + fmtDur(grandT) + '</span>' +
+        '<span class="zangyo-value" style="color:var(--zangyo);">Zangyo ' + fmtDur(grandZ) + '</span>' +
+      '</div>';
     item.addEventListener('click', () => showHistoryDetail(dayKey, dd));
     el.historyList.appendChild(item);
   });
@@ -880,6 +954,7 @@ el.tabHistory.addEventListener('click', () => {
   el.tabToday.classList.remove('active');
   el.viewToday.hidden = true;
   el.viewHistory.hidden = false;
+  renderMonthSummary();
   loadHistoryList();
 });
 
