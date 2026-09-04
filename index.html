@@ -132,6 +132,13 @@
   .month-card .month-row.total .value{font-weight:800; color:var(--text);}
   .month-card .teiji-value{color:var(--teiji); font-family:monospace;}
   .month-card .zangyo-value{color:var(--zangyo); font-family:monospace;}
+  .pick-btn{
+    aspect-ratio:1/0.85; border-radius:12px; border:2px solid var(--border);
+    background:var(--panel); color:var(--text);
+    font-size:15px; font-weight:800; text-align:center; line-height:1.2; padding:4px;
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .pick-btn small{position:absolute; bottom:6px; font-size:9px; font-weight:500; color:var(--muted);}
 </style>
 </head>
 <body>
@@ -180,8 +187,12 @@
 
     <div id="finalizedBanner" class="finalized-banner" hidden></div>
 
-    <div class="section-label">Registros de hoje</div>
+    <div class="section-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Registros de hoje</span>
+      <button class="reset-btn" id="editStationBtn" style="text-transform:none; letter-spacing:0; padding:6px 10px; font-size:11.5px;">Editar estação</button>
+    </div>
     <div class="events-list" id="eventsList"></div>
+    <div class="finalize-panel" id="stationEditPanel" hidden></div>
 
     <div class="section-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <span>Totais de hoje</span>
@@ -224,7 +235,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v2026-08-22-03 (teiji/zangyo separados na lista de dias)';
+const APP_VERSION = 'v2026-08-22-04 (editar estação de um registro)';
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
@@ -347,6 +358,7 @@ const el = {
   currentStationVal: document.getElementById('currentStationVal'),
   sinceVal: document.getElementById('sinceVal'),
   eventsList: document.getElementById('eventsList'),
+  stationEditPanel: document.getElementById('stationEditPanel'),
   totalsBody: document.getElementById('totalsBody'),
   adjustHint: document.getElementById('adjustHint'),
   adjustActions: document.getElementById('adjustActions'),
@@ -549,16 +561,23 @@ async function confirmFinalize(){
 }
 el.confirmFinalizeBtn.addEventListener('click', confirmFinalize);
 
+let editStationMode = false;
+
 function renderEventsList(){
   el.eventsList.innerHTML = '';
   if(dayData.events.length === 0 && !dayData.finalized){
     el.eventsList.innerHTML = '<div class="empty-msg">Nenhum registro ainda hoje.</div>';
     return;
   }
-  dayData.events.forEach(ev => {
+  dayData.events.forEach((ev, idx) => {
     const row = document.createElement('div');
     row.className = 'event-row';
     row.innerHTML = '<span class="ev-station">' + labelFor(ev.station) + '</span><span class="ev-time">' + fmtHM(new Date(ev.time)) + '</span>';
+    if(editStationMode){
+      row.style.cursor = 'pointer';
+      row.style.borderColor = 'var(--amber)';
+      row.addEventListener('click', () => openStationEditPanel(idx));
+    }
     el.eventsList.appendChild(row);
   });
   if(dayData.finalized){
@@ -570,12 +589,46 @@ function renderEventsList(){
   }
 }
 
+function openStationEditPanel(idx){
+  const ev = dayData.events[idx];
+  el.stationEditPanel.hidden = false;
+  let html = '<div style="font-size:14px; margin-bottom:12px;">Trocar <b>' + labelFor(ev.station) + '</b> das ' + fmtHM(new Date(ev.time)) + ' para:</div>';
+  html += '<div class="stations-grid" style="margin-bottom:12px;">';
+  STATIONS.forEach(s => {
+    html += '<button class="pick-btn" data-pick="' + s + '" style="' + (s === ev.station ? 'opacity:0.4;' : '') + '">' + labelFor(s) + '<small>' + s + '</small></button>';
+  });
+  html += '</div><div class="actions" style="margin-top:0;"><button class="btn" id="cancelStationEditBtn">Cancelar</button></div>';
+  el.stationEditPanel.innerHTML = html;
+  el.stationEditPanel.querySelectorAll('[data-pick]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newStation = btn.dataset.pick;
+      if(newStation !== ev.station){
+        dayData.events[idx].station = newStation;
+        saveDay();
+        render();
+        showStatus('Estação corrigida para ' + labelFor(newStation) + '.');
+      }
+      closeStationEditPanel();
+    });
+  });
+  document.getElementById('cancelStationEditBtn').addEventListener('click', closeStationEditPanel);
+}
+function closeStationEditPanel(){
+  el.stationEditPanel.hidden = true;
+  el.stationEditPanel.innerHTML = '';
+}
+
 let adjustMode = false;
 
 function openAdjustPanel(){
   if(dayData.events.length === 0){
     showStatus('Ainda não há registros hoje para ajustar.', true);
     return;
+  }
+  if(editStationMode){
+    editStationMode = false;
+    closeStationEditPanel();
+    document.getElementById('editStationBtn').textContent = 'Editar estação';
   }
   adjustMode = true;
   document.getElementById('editTimesBtn').textContent = 'Fechar ajuste';
@@ -736,7 +789,7 @@ function render(){
 
   document.querySelectorAll('.station-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.station === activeStation && !dayData.finalized);
-    btn.disabled = dayData.finalized || adjustMode;
+    btn.disabled = dayData.finalized || adjustMode || editStationMode;
   });
   updatePendingHighlight();
 
@@ -749,8 +802,8 @@ function render(){
     el.undoBtn.disabled = true;
   } else {
     el.finalizedBanner.hidden = true;
-    el.finalizeBtn.disabled = adjustMode;
-    el.undoBtn.disabled = dayData.events.length === 0 || adjustMode;
+    el.finalizeBtn.disabled = adjustMode || editStationMode;
+    el.undoBtn.disabled = dayData.events.length === 0 || adjustMode || editStationMode;
     el.currentStationVal.textContent = activeStation || '—';
   }
   updateElapsedDisplay();
@@ -775,6 +828,13 @@ setInterval(tickClock, 1000);
 el.finalizeBtn.addEventListener('click', openFinalizePanel);
 el.undoBtn.addEventListener('click', undoLast);
 el.resetBtn.addEventListener('click', resetDay);
+document.getElementById('editStationBtn').addEventListener('click', () => {
+  if(adjustMode) closeAdjustPanel();
+  editStationMode = !editStationMode;
+  closeStationEditPanel();
+  document.getElementById('editStationBtn').textContent = editStationMode ? 'Concluir edição' : 'Editar estação';
+  render();
+});
 document.getElementById('editTimesBtn').addEventListener('click', () => {
   if(adjustMode){
     closeAdjustPanel();
