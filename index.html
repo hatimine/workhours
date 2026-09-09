@@ -235,7 +235,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v2026-08-22-04 (editar estação de um registro)';
+const APP_VERSION = 'v2026-08-22-05 (verificação de conservação no ajuste)';
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
@@ -659,6 +659,8 @@ function readCategoryInput(category, station){
 function saveAdjustPanel(){
   const draft = JSON.parse(JSON.stringify(dayData.adjustments || {})); // rascunho — só aplica em dayData se tudo validar
   let errorMsg = null;
+  const grandBefore = { teiji:0, zangyo:0 };
+  const expectedGrandChange = { teiji:0, zangyo:0 };
 
   ['teiji','zangyo'].forEach(category => {
     if(errorMsg) return;
@@ -668,6 +670,7 @@ function saveAdjustPanel(){
       const hInput = el.totalsBody.querySelector('.'+category+'-h-input[data-station="'+s+'"]');
       return hInput ? Number(hInput.dataset.orig) : 0;
     });
+    grandBefore[category] = origValues.reduce((a,v) => a+v, 0);
 
     for(let i = 0; i < STATIONS.length; i++){
       const s = STATIONS[i];
@@ -688,8 +691,9 @@ function saveAdjustPanel(){
         const next = STATIONS[targetIdx];
         if(!draft[next]) draft[next] = {teiji:0, zangyo:0};
         draft[next][category] = (draft[next][category]||0) - delta;
+      } else {
+        expectedGrandChange[category] += delta; // sem próxima estação: essa mudança afeta o total geral mesmo
       }
-      // se não houver nenhuma estação seguinte com horas nessa categoria, a diferença não tem para onde ir
     }
   });
 
@@ -699,6 +703,21 @@ function saveAdjustPanel(){
   const hasNegative = STATIONS.some(s => draftTotals[s].teiji < 0 || draftTotals[s].zangyo < 0);
   if(hasNegative){
     showStatus('Esse ajuste deixaria alguma estação com horas negativas. Tente valores menores.', true);
+    return;
+  }
+
+  // verificação de segurança: o total geral só deveria mudar pelo valor esperado (edições sem próxima estação).
+  // se mudar mais que isso, tem algo errado — melhor avisar na hora do que deixar passar batido.
+  const warnings = [];
+  ['teiji','zangyo'].forEach(category => {
+    const grandAfter = STATIONS.reduce((a,s) => a+draftTotals[s][category], 0);
+    const diff = (grandAfter - grandBefore[category]) - expectedGrandChange[category];
+    if(Math.abs(diff) >= 60000){
+      warnings.push(category + ': ' + Math.round(diff/60000) + 'min a mais/menos do que deveria');
+    }
+  });
+  if(warnings.length > 0){
+    showStatus('Atenção: o ajuste não bateu certinho (' + warnings.join('; ') + '). Nada foi salvo — tente de novo ou me avise com esses números.', true);
     return;
   }
 
