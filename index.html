@@ -113,6 +113,8 @@
   .status-msg{margin-top:10px; padding:10px 12px; border-radius:10px; font-size:13px; text-align:center; font-weight:600;
     background:rgba(95,184,143,0.12); color:var(--teiji); border:1px solid var(--teiji);}
   .status-msg.error{background:rgba(217,82,74,0.12); color:#ff8f86; border-color:var(--danger);}
+  .backup-textarea{width:100%; min-height:200px; margin-top:8px; padding:10px; border-radius:9px; border:1px solid var(--border);
+    background:var(--bg); color:var(--text); font-family:monospace; font-size:10.5px; resize:vertical;}
 
   .tabs{display:flex; gap:8px; margin-top:14px;}
   .tab-btn{flex:1; padding:10px; border-radius:10px; border:1px solid var(--border);
@@ -230,12 +232,18 @@
     </div>
 
     <div id="statusMsg" class="status-msg" hidden></div>
+
+    <div class="section-label">Diagnóstico</div>
+    <div class="actions" style="margin-top:0;">
+      <button class="btn" id="generateLogBtn">Gerar log</button>
+    </div>
+    <textarea class="backup-textarea" id="logTextArea" readonly hidden placeholder="Toque em 'Gerar log' para preencher aqui"></textarea>
     </section>
   </main>
 </div>
 
 <script>
-const APP_VERSION = 'v2026-08-22-05 (verificação de conservação no ajuste)';
+const APP_VERSION = 'v2026-08-22-06 (log de ações + botão gerar log)';
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
@@ -351,6 +359,30 @@ function getAdjustedTotals(){
 let today = dateKeyOf(new Date());
 let dayData = { date: today, events: [], finalized:false, finalizedAt:null, finalizeMode:null, zangyoHours:null, adjustments:{} };
 
+let actionLog = [];
+function loadActionLog(){
+  try{
+    actionLog = JSON.parse(localStorage.getItem('actionlog:'+today) || '[]');
+  }catch(e){ actionLog = []; }
+}
+function logAction(msg){
+  actionLog.push(fmtClock(new Date()) + ' — ' + msg);
+  if(actionLog.length > 150) actionLog = actionLog.slice(-150); // não deixa crescer sem limite
+  try{ localStorage.setItem('actionlog:'+today, JSON.stringify(actionLog)); }catch(e){ /* melhor esforço, log não é crítico */ }
+}
+function generateLogText(){
+  const lines = [];
+  lines.push('LOG DE AÇÕES — ' + today);
+  lines.push('Versão do app: ' + APP_VERSION);
+  lines.push('');
+  lines.push('--- Ações registradas hoje ---');
+  actionLog.forEach(l => lines.push(l));
+  lines.push('');
+  lines.push('--- Estado atual completo (dayData) ---');
+  lines.push(JSON.stringify(dayData, null, 2));
+  return lines.join('\n');
+}
+
 const el = {
   clock: document.getElementById('clock'),
   dateLine: document.getElementById('dateLine'),
@@ -418,6 +450,7 @@ function loadDay(){
   }catch(e){
     showStatus('Este navegador não está permitindo salvar dados aqui (talvez aba anônima). Use uma aba normal.', true);
   }
+  loadActionLog();
   render();
 }
 
@@ -471,6 +504,7 @@ function confirmSelect(){
   const station = pendingStation;
   const { time } = computeEventTime();
   dayData.events.push({ station, time: time.toISOString() });
+  logAction('Registrou ' + labelFor(station) + ' às ' + fmtHM(time));
   pendingStation = null;
   el.selectConfirmPanel.hidden = true;
   saveDay();
@@ -488,7 +522,8 @@ el.confirmSelectBtn.addEventListener('click', confirmSelect);
 
 function undoLast(){
   if(dayData.finalized || dayData.events.length===0) return;
-  dayData.events.pop();
+  const removed = dayData.events.pop();
+  logAction('Desfez registro de ' + labelFor(removed.station) + ' (era ' + fmtHM(new Date(removed.time)) + ')');
   saveDay();
   render();
 }
@@ -555,6 +590,7 @@ async function confirmFinalize(){
   dayData.finalizedAt = endTime.toISOString();
   dayData.finalizeMode = selectedMode;
   dayData.zangyoHours = zangyoHours;
+  logAction('Finalizou o dia (' + selectedMode + (zangyoHours ? ' ' + zangyoHours + 'h' : '') + ') às ' + fmtHM(endTime));
   closeFinalizePanel();
   saveDay();
   render();
@@ -603,7 +639,9 @@ function openStationEditPanel(idx){
     btn.addEventListener('click', () => {
       const newStation = btn.dataset.pick;
       if(newStation !== ev.station){
+        const oldStation = ev.station;
         dayData.events[idx].station = newStation;
+        logAction('Trocou estação do registro das ' + fmtHM(new Date(ev.time)) + ': ' + labelFor(oldStation) + ' → ' + labelFor(newStation));
         saveDay();
         render();
         showStatus('Estação corrigida para ' + labelFor(newStation) + '.');
@@ -636,6 +674,9 @@ function openAdjustPanel(){
   el.adjustHint.textContent = 'Ordem fixa: 1 → 2 → 3A → 3B → 4. Teiji e zangyo são grupos independentes — cada um pula estações zeradas naquela categoria ao procurar a próxima pra compensar. Nunca mexe no horário final.';
   el.adjustActions.hidden = false;
   render();
+  const snapshot = getAdjustedTotals();
+  let snapshotStr = STATIONS.map(s => s+':T='+Math.round(snapshot[s].teiji/60000)+'m,Z='+Math.round(snapshot[s].zangyo/60000)+'m').join(' | ');
+  logAction('Abriu ajuste. Estado antes: ' + snapshotStr);
 }
 function closeAdjustPanel(){
   adjustMode = false;
@@ -661,6 +702,7 @@ function saveAdjustPanel(){
   let errorMsg = null;
   const grandBefore = { teiji:0, zangyo:0 };
   const expectedGrandChange = { teiji:0, zangyo:0 };
+  const changeLines = [];
 
   ['teiji','zangyo'].forEach(category => {
     if(errorMsg) return;
@@ -679,6 +721,7 @@ function saveAdjustPanel(){
       if(Number.isNaN(read)){ errorMsg = 'Preencha horas e minutos válidos em todos os campos.'; break; }
       if(read === origValues[i]) continue; // não mexido: não cascateia
       const delta = read - origValues[i];
+      changeLines.push(s + '.' + category + ': ' + Math.round(origValues[i]/60000) + 'm → ' + Math.round(read/60000) + 'm (delta ' + Math.round(delta/60000) + 'm)');
       if(!draft[s]) draft[s] = {teiji:0, zangyo:0};
       draft[s][category] = (draft[s][category]||0) + delta;
 
@@ -717,10 +760,12 @@ function saveAdjustPanel(){
     }
   });
   if(warnings.length > 0){
-    showStatus('Atenção: o ajuste não bateu certinho (' + warnings.join('; ') + '). Nada foi salvo — tente de novo ou me avise com esses números.', true);
+    logAction('TENTATIVA DE AJUSTE FALHOU. Mudanças pedidas: [' + changeLines.join('; ') + ']. Problema: ' + warnings.join('; ') + '.');
+    showStatus('Atenção: o ajuste não bateu certinho (' + warnings.join('; ') + '). Nada foi salvo — toque em "Gerar log" logo abaixo e me manda o texto.', true);
     return;
   }
 
+  logAction('Ajuste salvo com sucesso: [' + (changeLines.join('; ') || 'nenhuma mudança') + ']');
   dayData.adjustments = draft;
   closeAdjustPanel();
   saveDay();
@@ -1037,6 +1082,14 @@ el.tabHistory.addEventListener('click', () => {
   loadHistoryList();
 });
 
+document.getElementById('generateLogBtn').addEventListener('click', () => {
+  const ta = document.getElementById('logTextArea');
+  ta.value = generateLogText();
+  ta.hidden = false;
+  ta.focus();
+  ta.select();
+  showStatus('Log gerado abaixo — toque nele, selecione tudo e copie pra me mandar.');
+});
 document.getElementById('versionTag').textContent = APP_VERSION;
 loadDay();
 </script>
