@@ -132,6 +132,8 @@
   .month-card .month-row{display:flex; justify-content:space-between; font-size:12.5px; padding:2px 0;}
   .month-card .month-row .label{color:var(--muted);}
   .month-card .month-row.total .value{font-weight:800; color:var(--text);}
+  .month-card .month-row.pay{border-top:1px dashed var(--border); margin-top:6px; padding-top:6px;}
+  .month-card .month-row.pay .value{font-family:monospace; font-weight:700; color:var(--amber);}
   .month-card .teiji-value{color:var(--teiji); font-family:monospace;}
   .month-card .zangyo-value{color:var(--zangyo); font-family:monospace;}
   .pick-btn{
@@ -246,7 +248,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v2026-08-22-08 (continuar serviço, hoje e em dias antigos)';
+const APP_VERSION = 'v2026-09-21-01 (estimativa de salário no histórico)';
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
@@ -259,6 +261,10 @@ const BREAKS = [
 const TEIJI_END = '15:30';
 const ZANGYO_START = '15:40';
 const DAY_START = '06:30';
+
+// estimativa de salário (exibida sem símbolo de moeda, de propósito)
+const HOURLY_RATE = 1390;
+const ZANGYO_MULTIPLIER = 1.25;
 
 function pad2(n){ return String(n).padStart(2,'0'); }
 function dateKeyOf(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
@@ -276,6 +282,15 @@ function fmtDur(ms){
   const m = totalMin%60;
   const decimal = parseFloat((totalMin/60).toFixed(2)).toString();
   return h+':'+pad2(m)+'/'+decimal;
+}
+// valor estimado a partir dos minutos de teiji e zangyo (arredonda só no final)
+function estimatePay(teijiMs, zangyoMs){
+  const teijiHours = Math.round(teijiMs/60000) / 60;
+  const zangyoHours = Math.round(zangyoMs/60000) / 60;
+  return Math.round(teijiHours * HOURLY_RATE + zangyoHours * HOURLY_RATE * ZANGYO_MULTIPLIER);
+}
+function fmtPay(value){
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // separador de milhar no padrão brasileiro
 }
 function fmtElapsed(ms){
   if(ms<0) ms=0;
@@ -1030,6 +1045,7 @@ function monthCardHTML(title, monthKey){
     '<div class="month-row"><span class="label">Teiji</span><span class="value teiji-value">' + fmtDur(t.teiji) + '</span></div>' +
     '<div class="month-row"><span class="label">Zangyo</span><span class="value zangyo-value">' + fmtDur(t.zangyo) + '</span></div>' +
     '<div class="month-row total"><span class="label">Total</span><span class="value">' + fmtDur(t.teiji + t.zangyo) + '</span></div>' +
+    '<div class="month-row pay"><span class="label">Estimado</span><span class="value">' + fmtPay(estimatePay(t.teiji, t.zangyo)) + '</span></div>' +
     '</div>';
 }
 function renderMonthSummary(){
