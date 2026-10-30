@@ -143,6 +143,50 @@
     display:flex; align-items:center; justify-content:center; position:relative;
   }
   .pick-btn small{position:absolute; bottom:6px; font-size:9px; font-weight:500; color:var(--muted);}
+
+  .btn.confirm:disabled{opacity:0.4;}
+  .end-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .end-btn, .end-custom{
+    min-height:68px; border-radius:12px; border:2px solid var(--border);
+    background:var(--panel-2); color:var(--text);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .end-btn{font-family:"SF Mono","Courier New",monospace; font-variant-numeric:tabular-nums; font-size:26px; font-weight:700;}
+  .end-custom{flex-direction:column; gap:2px; padding:6px 8px; font-size:11.5px; font-weight:600; color:var(--muted);}
+  .end-custom input{width:100%; background:transparent; border:none; outline:none; color:var(--text); color-scheme:dark;
+    font-family:"SF Mono","Courier New",monospace; font-size:22px; font-weight:700; text-align:center; padding:0;}
+  .end-btn.selected, .end-custom.selected{border-color:var(--amber); background:var(--amber-dim); color:var(--amber);}
+  .end-custom.selected input{color:var(--amber);}
+
+  .rate-bar{margin-bottom:14px;}
+  .rate-field{display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:8px 10px 8px 14px;}
+  .rate-field label{flex:1; font-size:13px; color:var(--muted);}
+  .rate-field input{width:96px; padding:8px; border-radius:9px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-family:monospace; font-size:16px; text-align:right;}
+  .rate-toggle{background:none; border:1px solid var(--border); color:var(--muted); font-size:12px; font-weight:700; padding:8px 12px; border-radius:9px;}
+  .rate-show{display:block; margin-left:auto; padding:4px 14px; letter-spacing:2px;}
+  .rate-field[hidden], .rate-show[hidden], .logout-overlay[hidden]{display:none !important;}
+
+  .logout-overlay{position:fixed; top:0; left:0; right:0; bottom:0; z-index:1000; overflow-y:auto;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    background:linear-gradient(180deg,#c0372f,#8f241e); text-align:center;}
+  .logout-box{max-width:420px; width:100%;}
+  .logout-icon{font-size:84px; line-height:1; animation:logout-pulse 1.1s ease-in-out infinite;}
+  .logout-title{margin-top:18px; font-size:clamp(32px,10vw,46px); font-weight:900; line-height:1.12; color:#fff;}
+  .logout-sub{margin-top:16px; font-size:17px; line-height:1.4; color:#ffe3df;}
+  .logout-btn{margin-top:32px; width:100%; padding:20px; border-radius:14px; border:none; background:#fff; color:#8f241e; font-size:20px; font-weight:800;}
+  @keyframes logout-pulse{0%,100%{transform:scale(1);} 50%{transform:scale(1.14);}}
+  @media (prefers-reduced-motion: reduce){ .logout-icon{animation:none;} }
+
+  .summary-overlay{position:fixed; top:0; left:0; right:0; bottom:0; z-index:900; overflow-y:auto;
+    background:var(--bg); padding:24px 16px 32px;}
+  .summary-box{max-width:480px; margin:0 auto;}
+  .summary-title{font-size:22px; font-weight:800; color:var(--amber);}
+  .summary-sub{margin:6px 0 10px; font-size:13px; line-height:1.4; color:var(--muted);}
+  .summary-notes{margin-top:12px; font-size:12.5px; line-height:1.4; color:var(--muted);}
+  .summary-notes .warn{color:#ff8f86; margin-top:6px;}
+  table.totals td.changed{background:rgba(240,165,55,0.10);}
+  .real-note{font-size:10.5px; color:var(--muted); font-family:monospace; margin-top:2px; white-space:nowrap;}
+  .summary-overlay[hidden]{display:none !important;}
 </style>
 </head>
 <body>
@@ -164,6 +208,14 @@
 
   <main>
     <section id="view-history" hidden>
+      <div class="rate-bar">
+        <div class="rate-field" id="rateField">
+          <label for="rateInput">Valor da hora</label>
+          <input type="number" id="rateInput" inputmode="decimal" min="0" step="any" placeholder="0">
+          <button type="button" class="rate-toggle" id="rateHideBtn">Esconder</button>
+        </div>
+        <button type="button" class="rate-toggle rate-show" id="rateShowBtn" aria-label="Mostrar campo" hidden>···</button>
+      </div>
       <div id="monthSummary"></div>
       <div class="section-label">Dias registrados</div>
       <div id="historyList"></div>
@@ -221,18 +273,12 @@
     </div>
 
     <div class="finalize-panel" id="finalizePanel" hidden>
-      <div class="section-label" style="margin-top:0;">Como foi hoje?</div>
-      <div class="mode-toggle">
-        <button class="mode-btn selected" id="modeTeijiBtn">Teiji (sem hora extra)</button>
-        <button class="mode-btn" id="modeZangyoBtn">Com zangyo</button>
-      </div>
-      <div class="zangyo-input-row" id="zangyoInputRow">
-        <label for="zangyoHoursInput">Quantas horas de zangyo?</label>
-        <input type="number" id="zangyoHoursInput" step="0.25" min="0" value="1">
-      </div>
+      <div class="section-label" style="margin-top:0;">Que horas você terminou?</div>
+      <div class="end-grid" id="endTimeGrid"></div>
+      <div class="status-sub" id="endTimeSummary" style="margin:12px 0 14px;"></div>
       <div class="actions" style="margin-top:0;">
         <button class="btn" id="cancelFinalizeBtn">Cancelar</button>
-        <button class="btn confirm" id="confirmFinalizeBtn">Confirmar finalização</button>
+        <button class="btn confirm" id="confirmFinalizeBtn" disabled>Confirmar finalização</button>
       </div>
     </div>
 
@@ -247,8 +293,27 @@
   </main>
 </div>
 
+<div id="logoutOverlay" class="logout-overlay" role="alertdialog" aria-modal="true" aria-labelledby="logoutTitle" hidden>
+  <div class="logout-box">
+    <div class="logout-icon">⚠️</div>
+    <div class="logout-title" id="logoutTitle">FAÇA LOGOUT NO SISTEMA DA FÁBRICA</div>
+    <div class="logout-sub" id="logoutSub"></div>
+    <button type="button" class="logout-btn" id="logoutDoneBtn">Já fiz o logout</button>
+  </div>
+</div>
+
+<div id="summaryOverlay" class="summary-overlay" role="dialog" aria-modal="true" aria-labelledby="summaryTitle" hidden>
+  <div class="summary-box">
+    <div class="summary-title" id="summaryTitle">Totais do dia</div>
+    <div class="summary-sub" id="summarySub"></div>
+    <div id="summaryTable"></div>
+    <div class="summary-notes" id="summaryNotes"></div>
+    <button type="button" class="btn confirm" id="summaryCloseBtn" style="width:100%; margin-top:22px;">Fechar</button>
+  </div>
+</div>
+
 <script>
-const APP_VERSION = 'v2026-09-21-01 (estimativa de salário no histórico)';
+const APP_VERSION = 'v2026-10-30-02';
 const STATIONS = ['1','2','3A','3B','4'];
 const STATION_LABELS = { '1':'静電', '2':'電着', '3A':'修正', '3B':'全検', '4':'そのほか' };
 function labelFor(s){ return STATION_LABELS[s] || s; }
@@ -262,9 +327,10 @@ const TEIJI_END = '15:30';
 const ZANGYO_START = '15:40';
 const DAY_START = '06:30';
 
-// estimativa de salário (exibida sem símbolo de moeda, de propósito)
-const HOURLY_RATE = 1390;
+// estimativa: o valor da hora vem do campo no Histórico (salvo só neste navegador); exibida sem símbolo de moeda, de propósito
 const ZANGYO_MULTIPLIER = 1.25;
+const RATE_KEY = 'settings:hourlyRate';
+const RATE_HIDDEN_KEY = 'settings:rateHidden';
 
 function pad2(n){ return String(n).padStart(2,'0'); }
 function dateKeyOf(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
@@ -284,10 +350,10 @@ function fmtDur(ms){
   return h+':'+pad2(m)+'/'+decimal;
 }
 // valor estimado a partir dos minutos de teiji e zangyo (arredonda só no final)
-function estimatePay(teijiMs, zangyoMs){
+function estimatePay(teijiMs, zangyoMs, rate){
   const teijiHours = Math.round(teijiMs/60000) / 60;
   const zangyoHours = Math.round(zangyoMs/60000) / 60;
-  return Math.round(teijiHours * HOURLY_RATE + zangyoHours * HOURLY_RATE * ZANGYO_MULTIPLIER);
+  return Math.round(teijiHours * rate + zangyoHours * rate * ZANGYO_MULTIPLIER);
 }
 function fmtPay(value){
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // separador de milhar no padrão brasileiro
@@ -437,10 +503,20 @@ const el = {
   continueServiceRow: document.getElementById('continueServiceRow'),
   resetBtn: document.getElementById('resetBtn'),
   finalizePanel: document.getElementById('finalizePanel'),
-  modeTeijiBtn: document.getElementById('modeTeijiBtn'),
-  modeZangyoBtn: document.getElementById('modeZangyoBtn'),
-  zangyoInputRow: document.getElementById('zangyoInputRow'),
-  zangyoHoursInput: document.getElementById('zangyoHoursInput'),
+  endTimeGrid: document.getElementById('endTimeGrid'),
+  endTimeSummary: document.getElementById('endTimeSummary'),
+  rateField: document.getElementById('rateField'),
+  rateInput: document.getElementById('rateInput'),
+  rateHideBtn: document.getElementById('rateHideBtn'),
+  rateShowBtn: document.getElementById('rateShowBtn'),
+  logoutOverlay: document.getElementById('logoutOverlay'),
+  logoutSub: document.getElementById('logoutSub'),
+  logoutDoneBtn: document.getElementById('logoutDoneBtn'),
+  summaryOverlay: document.getElementById('summaryOverlay'),
+  summarySub: document.getElementById('summarySub'),
+  summaryTable: document.getElementById('summaryTable'),
+  summaryNotes: document.getElementById('summaryNotes'),
+  summaryCloseBtn: document.getElementById('summaryCloseBtn'),
   cancelFinalizeBtn: document.getElementById('cancelFinalizeBtn'),
   confirmFinalizeBtn: document.getElementById('confirmFinalizeBtn'),
   statusMsg: document.getElementById('statusMsg'),
@@ -607,7 +683,68 @@ async function resetDay(){
   showStatus('Novo dia iniciado.');
 }
 
-let selectedMode = 'teiji';
+let endChoice = null;
+
+function slotLabel(totalMin){
+  const m = ((totalMin % 1440) + 1440) % 1440;
+  return pad2(Math.floor(m/60)) + ':' + pad2(m%60);
+}
+function hhmmToMin(hhmm){
+  const [h, m] = hhmm.split(':').map(Number);
+  return h*60 + m;
+}
+// A saída do teiji é sempre 15:30; o zangyo recomeça a contar às 15:40 (intervalo de descanso),
+// então as saídas com zangyo são 15:40 + múltiplos de 15 min (15:55, 16:10, 16:25...).
+// Mostra 1 opção antes de agora e 2 depois (se agora cai exatamente num horário, ele é o 2º da lista).
+function computeEndSlots(now){
+  const mins = now.getHours()*60 + now.getMinutes();
+  const slots = [hhmmToMin(TEIJI_END)];
+  for(let t = hhmmToMin(ZANGYO_START) + 15; t < 1440; t += 15) slots.push(t);
+  let idx = 0;
+  for(let i = 0; i < slots.length; i++){ if(slots[i] < mins) idx = i; }
+  idx = Math.min(idx, slots.length - 3);
+  return slots.slice(idx, idx + 3).map(slotLabel);
+}
+
+function selectEndTime(hhmm, fromCustom){
+  endChoice = hhmm;
+  el.endTimeGrid.querySelectorAll('.end-btn').forEach(b => {
+    b.classList.toggle('selected', !fromCustom && b.dataset.time === hhmm);
+  });
+  const cell = document.getElementById('endCustomCell');
+  if(cell){
+    cell.classList.toggle('selected', !!fromCustom && !!hhmm);
+    if(!fromCustom) document.getElementById('endCustomInput').value = '';
+  }
+  el.endTimeSummary.textContent = hhmm ? ('Finalizar às ' + hhmm + '.') : 'Toque no horário em que você terminou.';
+  el.confirmFinalizeBtn.disabled = !hhmm;
+}
+
+function buildEndTimeOptions(){
+  el.endTimeGrid.innerHTML = '';
+  computeEndSlots(new Date()).forEach(label => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'end-btn';
+    b.dataset.time = label;
+    b.textContent = label;
+    b.addEventListener('click', () => selectEndTime(label, false));
+    el.endTimeGrid.appendChild(b);
+  });
+  const cell = document.createElement('label');
+  cell.className = 'end-custom';
+  cell.id = 'endCustomCell';
+  cell.innerHTML = '<span>Outro horário</span><input type="time" id="endCustomInput">';
+  el.endTimeGrid.appendChild(cell);
+  const input = cell.querySelector('input');
+  const onCustom = () => {
+    if(/^\d{2}:\d{2}$/.test(input.value)) selectEndTime(input.value, true);
+    else if(cell.classList.contains('selected')) selectEndTime(null, true);
+  };
+  input.addEventListener('input', onCustom);
+  input.addEventListener('change', onCustom);
+  selectEndTime(null, false);
+}
 
 function openFinalizePanel(){
   if(dayData.finalized) return;
@@ -615,44 +752,132 @@ function openFinalizePanel(){
     showStatus('Selecione ao menos uma estação antes de finalizar.', true);
     return;
   }
-  selectedMode = 'teiji';
-  updateModeButtons();
+  buildEndTimeOptions();
   el.finalizePanel.hidden = false;
 }
 function closeFinalizePanel(){
   el.finalizePanel.hidden = true;
 }
-function updateModeButtons(){
-  el.modeTeijiBtn.classList.toggle('selected', selectedMode === 'teiji');
-  el.modeZangyoBtn.classList.toggle('selected', selectedMode === 'zangyo');
-  el.zangyoInputRow.classList.toggle('visible', selectedMode === 'zangyo');
-}
-el.modeTeijiBtn.addEventListener('click', () => { selectedMode = 'teiji'; updateModeButtons(); });
-el.modeZangyoBtn.addEventListener('click', () => { selectedMode = 'zangyo'; updateModeButtons(); });
 el.cancelFinalizeBtn.addEventListener('click', closeFinalizePanel);
 
-async function confirmFinalize(){
-  let endTime, zangyoHours = null;
-  if(selectedMode === 'teiji'){
-    endTime = timeOnDate(today, TEIJI_END);
-  } else {
-    const hours = parseFloat(el.zangyoHoursInput.value);
-    if(isNaN(hours) || hours < 0){
-      showStatus('Digite uma quantidade de horas válida.', true);
-      return;
+function showLogoutWarning(endTime){
+  el.logoutSub.textContent = 'Serviço finalizado às ' + fmtHM(endTime) + '. Saia do sistema antes de ir embora.';
+  el.logoutOverlay.hidden = false;
+  el.logoutDoneBtn.focus();
+}
+// ---- Resumo ao finalizar: 電着 arredondado de 15 em 15 min (só para exibir; o histórico guarda o horário real) ----
+const ROUND_STATION = '2';   // 電着
+const ROUND_STEP_MIN = 15;
+let summaryPending = false;
+
+// Arredonda o tempo de 電着 (teiji e zangyo, cada um) para o múltiplo de 15 min mais próximo e compensa a diferença
+// na próxima estação com horas naquela categoria (mesma regra do painel de ajuste). Não altera nada salvo.
+function buildRoundedTotals(real){
+  const adj = {};
+  STATIONS.forEach(s => { adj[s] = { teiji: real[s].teiji, zangyo: real[s].zangyo }; });
+  const skipped = [];
+  const idx = STATIONS.indexOf(ROUND_STATION);
+  ['teiji','zangyo'].forEach(cat => {
+    const realMin = Math.round(real[ROUND_STATION][cat] / 60000);
+    const target = Math.round(realMin / ROUND_STEP_MIN) * ROUND_STEP_MIN;
+    const delta = target - realMin;
+    if(delta === 0) return;
+    let nextS = null;
+    for(let j = idx + 1; j < STATIONS.length; j++){
+      if(real[STATIONS[j]][cat] !== 0){ nextS = STATIONS[j]; break; }
     }
-    zangyoHours = hours;
-    const zangyoStart = timeOnDate(today, ZANGYO_START);
-    endTime = new Date(zangyoStart.getTime() + hours*3600000);
+    if(nextS){
+      const nextMin = Math.round(real[nextS][cat] / 60000);
+      if(nextMin - delta < 0){ skipped.push(cat); return; } // a próxima não tem tempo pra compensar
+      adj[nextS][cat] = (nextMin - delta) * 60000;
+    }
+    adj[ROUND_STATION][cat] = target * 60000;
+  });
+  return { adj, skipped };
+}
+
+function summaryTableHTML(adj, real){
+  const cell = (cls, a, r) => {
+    const changed = a !== r;
+    return '<td class="' + cls + (changed ? ' changed' : '') + '">' + fmtDur(a) +
+      (changed ? '<div class="real-note">real ' + fmtDur(r) + '</div>' : '') + '</td>';
+  };
+  const row = (label, a, r, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td class="station-cell">' + label + '</td>' +
+    cell('teiji-cell', a.teiji, r.teiji) + cell('zangyo-cell', a.zangyo, r.zangyo) +
+    cell('total-cell', a.teiji + a.zangyo, r.teiji + r.zangyo) + '</tr>';
+  const isZero = t => t.teiji === 0 && t.zangyo === 0;
+  const sumOf = (t, list) => list.reduce((acc, s) => ({ teiji: acc.teiji + t[s].teiji, zangyo: acc.zangyo + t[s].zangyo }), { teiji:0, zangyo:0 });
+  let rows = '';
+  STATIONS.forEach(s => {
+    if(isZero(adj[s]) && isZero(real[s])) return;
+    rows += row(labelFor(s), adj[s], real[s]);
+  });
+  const a34 = sumOf(adj, ['3A','3B']), r34 = sumOf(real, ['3A','3B']);
+  if(!(isZero(a34) && isZero(r34))) rows += row(labelFor('3A') + ' + ' + labelFor('3B'), a34, r34, 'subtotal');
+  rows += row('Total', sumOf(adj, STATIONS), sumOf(real, STATIONS), 'grand');
+  return '<table class="totals"><thead><tr><th>Estação</th><th>Teiji</th><th>Zangyo</th><th>Total</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function showFinalSummary(){
+  const real = getTotalsFor(dayData);
+  const { adj, skipped } = buildRoundedTotals(real);
+  const changes = [];
+  STATIONS.forEach(s => ['teiji','zangyo'].forEach(c => {
+    if(adj[s][c] !== real[s][c]) changes.push(s + '.' + c + ': ' + Math.round(real[s][c]/60000) + 'm → ' + Math.round(adj[s][c]/60000) + 'm');
+  }));
+  logAction('Resumo ao finalizar: ' + (changes.join('; ') || 'sem ajuste') + (skipped.length ? ' (sem compensação possível: ' + skipped.join(', ') + ')' : ''));
+  el.summarySub.textContent = labelFor(ROUND_STATION) + ' arredondado de ' + ROUND_STEP_MIN + ' em ' + ROUND_STEP_MIN +
+    ' min. Onde o horário mudou, o real aparece embaixo; o histórico guarda o real.';
+  el.summaryTable.innerHTML = summaryTableHTML(adj, real);
+  let notes = '';
+  if(changes.length === 0 && skipped.length === 0) notes += 'Nenhum ajuste foi necessário.';
+  skipped.forEach(cat => {
+    notes += '<div class="warn">' + (cat === 'teiji' ? 'Teiji' : 'Zangyo') + ' de ' + labelFor(ROUND_STATION) +
+      ' ficou sem ajuste: a próxima estação não tem tempo suficiente para compensar.</div>';
+  });
+  el.summaryNotes.innerHTML = notes;
+  el.summaryOverlay.hidden = false;
+  el.summaryOverlay.scrollTop = 0;
+}
+el.summaryCloseBtn.addEventListener('click', () => { el.summaryOverlay.hidden = true; });
+
+// o resumo aparece depois que o aviso de logout é dispensado
+el.logoutDoneBtn.addEventListener('click', () => {
+  el.logoutOverlay.hidden = true;
+  if(summaryPending){
+    summaryPending = false;
+    showFinalSummary();
+  }
+});
+
+async function confirmFinalize(){
+  if(!endChoice){
+    showStatus('Escolha o horário em que você terminou.', true);
+    return;
+  }
+  const endTime = timeOnDate(today, endChoice);
+  const last = dayData.events[dayData.events.length-1];
+  if(last && endTime <= new Date(last.time)){
+    showStatus('O horário final precisa ser depois do último registro (' + fmtHM(new Date(last.time)) + ').', true);
+    return;
+  }
+  // depois das 15:40 o que passa disso é zangyo; até lá é só teiji
+  const zangyoStart = timeOnDate(today, ZANGYO_START);
+  let mode = 'teiji', zangyoHours = null;
+  if(endTime > zangyoStart){
+    mode = 'zangyo';
+    zangyoHours = parseFloat(((endTime - zangyoStart) / 3600000).toFixed(2));
   }
   dayData.finalized = true;
   dayData.finalizedAt = endTime.toISOString();
-  dayData.finalizeMode = selectedMode;
+  dayData.finalizeMode = mode;
   dayData.zangyoHours = zangyoHours;
-  logAction('Finalizou o dia (' + selectedMode + (zangyoHours ? ' ' + zangyoHours + 'h' : '') + ') às ' + fmtHM(endTime));
+  logAction('Finalizou o dia (' + mode + (zangyoHours ? ' ' + zangyoHours + 'h' : '') + ') às ' + fmtHM(endTime));
   closeFinalizePanel();
   saveDay();
   render();
+  summaryPending = true;
+  showLogoutWarning(endTime);
 }
 el.confirmFinalizeBtn.addEventListener('click', confirmFinalize);
 
@@ -1036,6 +1261,7 @@ function computeMonthlyTotals(monthKey){
 }
 function monthCardHTML(title, monthKey){
   const t = computeMonthlyTotals(monthKey);
+  const rate = getHourlyRate();
   if(!t.hasAny){
     return '<div class="month-card"><div class="month-title">' + title + '</div>' +
       '<div style="color:var(--muted); font-size:12px;">Sem registros</div></div>';
@@ -1045,7 +1271,7 @@ function monthCardHTML(title, monthKey){
     '<div class="month-row"><span class="label">Teiji</span><span class="value teiji-value">' + fmtDur(t.teiji) + '</span></div>' +
     '<div class="month-row"><span class="label">Zangyo</span><span class="value zangyo-value">' + fmtDur(t.zangyo) + '</span></div>' +
     '<div class="month-row total"><span class="label">Total</span><span class="value">' + fmtDur(t.teiji + t.zangyo) + '</span></div>' +
-    '<div class="month-row pay"><span class="label">Estimado</span><span class="value">' + fmtPay(estimatePay(t.teiji, t.zangyo)) + '</span></div>' +
+    (rate ? '<div class="month-row pay"><span class="label">Estimado</span><span class="value">' + fmtPay(estimatePay(t.teiji, t.zangyo, rate)) + '</span></div>' : '') +
     '</div>';
 }
 function renderMonthSummary(){
@@ -1210,6 +1436,42 @@ document.getElementById('generateLogBtn').addEventListener('click', () => {
   showStatus('Log gerado abaixo — toque nele, selecione tudo e copie pra me mandar.');
 });
 document.getElementById('versionTag').textContent = APP_VERSION;
+
+function getHourlyRate(){
+  try{
+    const v = parseFloat(localStorage.getItem(RATE_KEY));
+    return (isFinite(v) && v > 0) ? v : null;
+  }catch(e){ return null; }
+}
+function applyRateHidden(hidden){
+  el.rateField.hidden = hidden;
+  el.rateShowBtn.hidden = !hidden;
+}
+function loadRateUI(){
+  let raw = '', hidden = false;
+  try{
+    raw = localStorage.getItem(RATE_KEY) || '';
+    hidden = localStorage.getItem(RATE_HIDDEN_KEY) === '1';
+  }catch(e){ /* sem armazenamento: o campo funciona só nesta sessão */ }
+  el.rateInput.value = raw;
+  applyRateHidden(hidden);
+}
+function setRateHidden(hidden){
+  try{ localStorage.setItem(RATE_HIDDEN_KEY, hidden ? '1' : '0'); }catch(e){ /* melhor esforço */ }
+  applyRateHidden(hidden);
+}
+el.rateInput.addEventListener('input', () => {
+  const v = el.rateInput.value.trim();
+  try{
+    if(v === '') localStorage.removeItem(RATE_KEY);
+    else localStorage.setItem(RATE_KEY, v);
+  }catch(e){ /* melhor esforço */ }
+  renderMonthSummary();
+});
+el.rateHideBtn.addEventListener('click', () => setRateHidden(true));
+el.rateShowBtn.addEventListener('click', () => setRateHidden(false));
+
+loadRateUI();
 loadDay();
 </script>
 </body>
